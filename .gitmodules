@@ -1,0 +1,3 @@
+[submodule "external/OtherRepo"]
+	path = external/OtherRepo
+	url = https://github.com/MvDevsUnion/Ashi.MongoInterface9.git
