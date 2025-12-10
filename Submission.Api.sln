@@ -2,6 +2,13 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Submission.Api", "Submission.Api\Submission.Api.csproj", "{F061EFE3-FFFE-4F0F-825A-9FF8B985912D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{204A1F7E-0832-4DEF-A64E-EB1A00F559A0}"
+	ProjectSection(SolutionItems) = preProject
+		compose.yaml = compose.yaml
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ashi.MongoInterface", "external\OtherRepo\Ashi.MongoInterface\Ashi.MongoInterface.csproj", "{6F6B8940-4740-48D1-8790-8CD82A66676B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +19,12 @@ Global
 		{F061EFE3-FFFE-4F0F-825A-9FF8B985912D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F061EFE3-FFFE-4F0F-825A-9FF8B985912D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F061EFE3-FFFE-4F0F-825A-9FF8B985912D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F6B8940-4740-48D1-8790-8CD82A66676B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F6B8940-4740-48D1-8790-8CD82A66676B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F6B8940-4740-48D1-8790-8CD82A66676B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F6B8940-4740-48D1-8790-8CD82A66676B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{6F6B8940-4740-48D1-8790-8CD82A66676B} = {204A1F7E-0832-4DEF-A64E-EB1A00F559A0}
 	EndGlobalSection
 EndGlobal

@@ -1,6 +1,10 @@
-﻿namespace Submission.Api.Models;
+﻿using Ashi.MongoInterface.Helper;
 
-public class Author
+namespace Submission.Api.Models;
+
+[BsonCollection("author")]
+public class Author : Document
 {
-    
+    public string Name { get; set; }
+    public string NID { get; set; } 
 }

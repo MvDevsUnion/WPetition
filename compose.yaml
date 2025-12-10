@@ -1,0 +1,7 @@
+﻿services:
+  submission.api:
+    image: submission.api
+    build:
+      context: .
+      dockerfile: Submission.Api/Dockerfile
+
