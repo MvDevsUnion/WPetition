@@ -1,5 +1,9 @@
-# Petition Submission API
+# WPetition Submission API
+maldives parliment promised the release of a e-petition system powered by efass will be released months ago and then never released it   
+i said fuck it i want data protection bill so i made this simple signature collection system since the law doesnt care if youre signature is signed digitally or via wet ink.   
+made it in 5 hours and didnt even vibe code it 
 
+## nerd shit
 A petition signing API built with ASP.NET Core 9.0 that allows users to sign petitions and retrieve petition details. Features rate limiting to prevent spam and duplicate signature detection.
 
 ## Features
