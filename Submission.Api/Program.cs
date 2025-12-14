@@ -1,13 +1,14 @@
-using System.Configuration;
 using Ashi.MongoInterface;
 using Ashi.MongoInterface.Service;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
+using Submission.Api.Configuration;
 
-var builder = WebApplication.CreateBuilder(args); 
+var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDbSettings"));
+builder.Services.Configure<PetitionSettings>(builder.Configuration.GetSection("PetitionSettings"));
 
 builder.Services.AddSingleton<IMongoDbSettings>(serviceProvider =>
     serviceProvider.GetRequiredService<IOptions<MongoDbSettings>>().Value);
@@ -17,8 +18,9 @@ builder.Services.AddScoped((typeof(IMongoRepository<>)), typeof(MongoRepository<
 builder.Services.AddMemoryCache();
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// Add Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 // Add rate limiting
 builder.Services.AddRateLimiter(options =>
@@ -37,7 +39,8 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();

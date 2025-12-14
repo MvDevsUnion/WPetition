@@ -1,7 +1,10 @@
 # WPetition Submission API
+
+a self hostable e petition system to collect signatures for your cause.   
+
+## why make this
 maldives parliment promised the release of a e-petition system powered by efass will be released months ago and then never released it   
 i said fuck it i want data protection bill so i made this simple signature collection system since the law doesnt care if youre signature is signed digitally or via wet ink.   
-made it in 5 hours and didnt even vibe code it 
 
 ## nerd shit
 A petition signing API built with ASP.NET Core 9.0 that allows users to sign petitions and retrieve petition details. Features rate limiting to prevent spam and duplicate signature detection.
@@ -26,11 +29,7 @@ A petition signing API built with ASP.NET Core 9.0 that allows users to sign pet
 
 ### MongoDB Setup
 
-1. Create a MongoDB database for the petition system
-2. Create the following collections:
-   - `signatures` - stores petition signatures
-   - `petitions` - stores petition details
-   - `authors` - stores petition author information
+refer to the details below
 
 ### Application Configuration
 
@@ -38,6 +37,9 @@ Update `appsettings.json` with your MongoDB connection settings:
 
 ```json
 {
+  "PetitionSettings": {
+    "AllowPetitionCreation": true
+  },
   "MongoDbSettings": {
     "ConnectionString": "mongodb://localhost:27017",
     "DatabaseName": "petition_database"
@@ -51,6 +53,10 @@ Update `appsettings.json` with your MongoDB connection settings:
   "AllowedHosts": "*"
 }
 ```
+
+by default `AllowPetitionCreation` is true. you must upload your Petition to the debug controller and then shut down the server and set this value to false and reboot or anyone will be able to submit petitions. 
+
+check out `sample.Petition.md` on how to structure your petition so it will be accepted by the server
 
 ### Rate Limiting Configuration
 
@@ -197,41 +203,6 @@ Retrieves details of a specific petition including author information.
 {}
 ```
 
-## Data Models
-
-### Signature (Widget)
-```csharp
-{
-  "id": "ObjectId",
-  "name": "string",
-  "idCard": "string",
-  "signature_SVG": "string",
-  "timestamp": "DateTime"
-}
-```
-
-### Petition Details
-```csharp
-{
-  "id": "Guid",
-  "startDate": "DateOnly",
-  "nameDhiv": "string",
-  "nameEng": "string",
-  "petitionBodyDhiv": "string",
-  "petitionBodyEng": "string",
-  "authorId": "Guid",
-  "signatureCount": "int"
-}
-```
-
-### Author
-```csharp
-{
-  "id": "Guid",
-  "name": "string",
-  "nid": "string"
-}
-```
 
 ## Security Features
 

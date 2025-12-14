@@ -1,10 +1,8 @@
-using System.CodeDom;
-using System.Runtime.InteropServices;
 using Ashi.MongoInterface.Service;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
+using MongoDB.Driver;
 using Submission.Api.Dto;
 using Submission.Api.Models;
 
@@ -14,16 +12,16 @@ namespace Submission.Api.Controllers
     [ApiController]
     public class SignController : ControllerBase
     {
-        
+
         private readonly IMongoRepository<Author> _authorRepository;
         private readonly IMongoRepository<PetitionDetail> _detailRepository;
-        private readonly IMongoRepository<Widget> _signatureRepository;
+        private readonly IMongoRepository<Signature> _signatureRepository;
         private readonly IMemoryCache _cache;
 
         public SignController(
             IMongoRepository<Author> authorRepository,
             IMongoRepository<PetitionDetail> detailRepository,
-            IMongoRepository<Widget> signatureRepository,
+            IMongoRepository<Signature> signatureRepository,
             IMemoryCache cache)
         {
             _authorRepository = authorRepository;
@@ -32,32 +30,53 @@ namespace Submission.Api.Controllers
             _cache = cache;
         }
 
-        [HttpPost(Name = "petition/{id}")]
+        [HttpPost("petition/{petition_id}", Name = "SignPetition")]
         [EnableRateLimiting("SignPetitionPolicy")]
-        public async Task<IActionResult> SignDisHoe([FromRoute]Guid petition_id,[FromBody] WidgetsDto body)
+        public async Task<IActionResult> SignDisHoe([FromRoute] Guid petition_id, [FromBody] WidgetsDto body)
         {
+            var cacheKey = $"petition_{petition_id}";
+
+            var pet = await _detailRepository.FindByIdAsync(petition_id);
+
+            if (pet == null)
+                return NotFound();
+
+            //TODO : add svg validation 
+
+
             //check to see if the same person signed the petition already
             //if dupe send error saying user already signed 
-             var dupe = await _signatureRepository.FindOneAsync(x => x.IdCard == body.IdCard);
-             if (dupe != null)
-                 return Problem("You already signed this petition");
-             
+            var dupe = await _signatureRepository.FindOneAsync(x => x.IdCard == body.IdCard);
+            if (dupe != null)
+                return Problem("You already signed this petition");
+
             //add signature to the db
-            await _signatureRepository.InsertOneAsync(new Widget
+            await _signatureRepository.InsertOneAsync(new Signature
             {
                 IdCard = body.IdCard,
                 Name = body.Name,
                 Signature_SVG = body.Signature,
-                Timestamp = DateTime.Now
+                Timestamp = DateTime.Now,
+                PetitionId = petition_id
             });
-            
+
             //update signature count 
-            
+            if (pet.SignatureCount == null)
+            {
+                pet.SignatureCount = 0;
+            }
+
+            var count_update_filter = Builders<PetitionDetail>.Filter.Eq("_id", petition_id);
+            var Countupdate = Builders<PetitionDetail>.Update.Inc("SignatureCount", 1);
+            await _detailRepository.UpdateOneAsync(count_update_filter, Countupdate);
+
+            _cache.Remove(cacheKey);
+
             return Ok("your signature has been submitted");
         }
 
-        [HttpGet(Name = "petition/{id}")]
-        public async Task<IActionResult>  GetDisHoe([FromRoute] Guid petition_id)
+        [HttpGet("petition/{petition_id}", Name = "GetPetition")]
+        public async Task<IActionResult> GetDisHoe([FromRoute] Guid petition_id)
         {
             var cacheKey = $"petition_{petition_id}";
 
@@ -68,7 +87,7 @@ namespace Submission.Api.Controllers
             }
 
             // Not in cache, fetch from database
-            var pet =  await _detailRepository.FindByIdAsync(petition_id);
+            var pet = await _detailRepository.FindByIdAsync(petition_id);
 
             if (pet == null)
                 return NotFound();
@@ -88,12 +107,14 @@ namespace Submission.Api.Controllers
                 {
                     Name = author.Name,
                     NID = author.NID,
-                }
+                },
+
+                SignatureCount = pet.SignatureCount
             };
 
             // Store in cache with 5 minute expiration
             var cacheOptions = new MemoryCacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromHours(12));
+                .SetAbsoluteExpiration(TimeSpan.FromHours(1));
 
             _cache.Set(cacheKey, dto, cacheOptions);
 

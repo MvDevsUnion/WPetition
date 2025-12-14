@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petition Details</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div id="loading" class="loading">Loading petition...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="petition-content" style="display: none;">
+            <div class="lang-switcher">
+                <button id="lang-en" class="lang-btn active">English</button>
+                <button id="lang-dv" class="lang-btn">ދިވެހި</button>
+            </div>
+
+            <div class="petition-header">
+                <h1 id="petition-name-eng" class="lang-en-content"></h1>
+                <h2 id="petition-name-dhiv" class="dhivehi lang-dv-content"></h2>
+                <div class="metadata">
+                    <span class="start-date">Start Date: <span id="start-date"></span></span>
+                    <span class="signature-count">Signatures: <span id="signature-count"></span></span>
+                </div>
+            </div>
+
+            <div class="author-details">
+                <h3 class="lang-en-content">Author Details</h3>
+                <h3 class="dhivehi lang-dv-content">ލިޔުންތެރިގެ މައުލޫމާތު</h3>
+                <p><strong class="lang-en-content">Name:</strong><strong class="dhivehi lang-dv-content">ނަން:</strong> <span id="author-name"></span></p>
+                <!-- <p><strong class="lang-en-content">NID:</strong><strong class="dhivehi lang-dv-content">ކާޑު ނަންބަރު:</strong> <span id="author-nid"></span></p> -->
+            </div>
+
+            <div class="petition-body">
+                <div class="lang-en-content">   
+                    <div id="petition-body-eng" class="body-content"></div>
+                </div>
+
+                <div class="lang-dv-content">
+                    <div id="petition-body-dhiv" class="body-content dhivehi"></div>
+                </div>
+            </div>
+
+            <div class="signature-section">
+                <h3 class="lang-en-content">Sign this Petition</h3>
+                <h3 class="dhivehi lang-dv-content">މި މައްސަލައިގައި ސޮއި ކުރައްވާ</h3>
+
+                <form id="signature-form">
+                    <div class="form-group">
+                        <label class="lang-en-content">Full Name</label>
+                        <label class="dhivehi lang-dv-content">ފުރިހަމަ ނަން</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="lang-en-content">ID Card Number</label>
+                        <label class="dhivehi lang-dv-content">ކާޑު ނަންބަރު</label>
+                        <input type="text" id="idCard" name="idCard" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="lang-en-content">Signature</label>
+                        <label class="dhivehi lang-dv-content">ސޮއި</label>
+                        <div class="signature-pad-container">
+                            <canvas id="signature-pad" width="600" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <div id="form-message" class="form-message"></div>
+
+                    <div class="form-buttons">
+                        <button type="button" id="clear-signature" class="btn-secondary" title="Clear signature" aria-label="Clear signature">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                        <button type="submit" class="btn-primary" title="Submit signature" aria-label="Submit signature">
+                            <i class="fas fa-paper-plane"></i> Submit
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration - Change this for different environments
+        const API_CONFIG = {
+            baseUrl: 'http://localhost:5299'  // Change to production URL when deploying
+        };
+
+        let currentLang = 'en';
+
+        // Extract petition ID from URL query parameter
+        function getPetitionIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
+
+        // Get language from URL query parameter
+        function getLangFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const lang = urlParams.get('lang');
+            return lang === 'dv' ? 'dv' : 'en';
+        }
+
+        // Update URL with current language
+        function updateUrlWithLang(lang) {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (lang === 'en') {
+                urlParams.delete('lang');
+            } else {
+                urlParams.set('lang', lang);
+            }
+            const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+            window.history.pushState({}, '', newUrl);
+        }
+
+        // Switch language
+        function switchLanguage(lang) {
+            currentLang = lang;
+
+            // Update button states
+            document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+            document.getElementById('lang-dv').classList.toggle('active', lang === 'dv');
+
+            // Show/hide content based on language
+            const enContent = document.querySelectorAll('.lang-en-content');
+            const dvContent = document.querySelectorAll('.lang-dv-content');
+
+            enContent.forEach(el => {
+                el.style.display = lang === 'en' ? '' : 'none';
+            });
+
+            dvContent.forEach(el => {
+                el.style.display = lang === 'dv' ? '' : 'none';
+            });
+
+            // Update URL
+            updateUrlWithLang(lang);
+        }
+
+        // Fetch petition data
+        async function fetchPetition(petitionId) {
+            const apiUrl = `${API_CONFIG.baseUrl}/api/Sign/petition/${petitionId}`;
+
+            try {
+                const response = await fetch(apiUrl);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayPetition(data);
+            } catch (error) {
+                showError(`Failed to load petition: ${error.message}`);
+            }
+        }
+
+        // Display petition data
+        function displayPetition(data) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('petition-content').style.display = 'block';
+
+            document.getElementById('petition-name-eng').textContent = data.nameEng;
+            document.getElementById('petition-name-dhiv').textContent = data.nameDhiv;
+            document.getElementById('start-date').textContent = data.startDate;
+            document.getElementById('signature-count').textContent = data.signatureCount;
+
+            document.getElementById('author-name').textContent = data.authorDetails.name;
+            //document.getElementById('author-nid').textContent = data.authorDetails.nid;
+
+            // Convert markdown-style formatting to HTML (basic support)
+            document.getElementById('petition-body-eng').innerHTML = formatText(data.petitionBodyEng);
+            document.getElementById('petition-body-dhiv').innerHTML = formatText(data.petitionBodyDhiv);
+
+            // Set initial language display
+            switchLanguage(currentLang);
+        }
+
+        // Parse Markdown to HTML
+        function formatText(text) {
+            return marked.parse(text);
+        }
+
+        // Show error message
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Signature pad functionality
+        let isDrawing = false;
+        let signaturePaths = [];
+        let currentPath = [];
+
+        function initSignaturePad() {
+            const canvas = document.getElementById('signature-pad');
+            const ctx = canvas.getContext('2d');
+
+            // Set up canvas style
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Mouse events
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+
+            // Touch events
+            canvas.addEventListener('touchstart', handleTouchStart);
+            canvas.addEventListener('touchmove', handleTouchMove);
+            canvas.addEventListener('touchend', stopDrawing);
+
+            // Clear button
+            document.getElementById('clear-signature').addEventListener('click', clearSignature);
+        }
+
+        function getMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+
+        function getTouchPos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: evt.touches[0].clientX - rect.left,
+                y: evt.touches[0].clientY - rect.top
+            };
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const canvas = document.getElementById('signature-pad');
+            const pos = getMousePos(canvas, e);
+            currentPath = [pos];
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+
+            const canvas = document.getElementById('signature-pad');
+            const ctx = canvas.getContext('2d');
+            const pos = getMousePos(canvas, e);
+
+            currentPath.push(pos);
+
+            ctx.beginPath();
+            ctx.moveTo(currentPath[currentPath.length - 2].x, currentPath[currentPath.length - 2].y);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            if (isDrawing && currentPath.length > 0) {
+                signaturePaths.push([...currentPath]);
+                currentPath = [];
+            }
+            isDrawing = false;
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            isDrawing = true;
+            const canvas = document.getElementById('signature-pad');
+            const pos = getTouchPos(canvas, e);
+            currentPath = [pos];
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!isDrawing) return;
+
+            const canvas = document.getElementById('signature-pad');
+            const ctx = canvas.getContext('2d');
+            const pos = getTouchPos(canvas, e);
+
+            currentPath.push(pos);
+
+            ctx.beginPath();
+            ctx.moveTo(currentPath[currentPath.length - 2].x, currentPath[currentPath.length - 2].y);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        }
+
+        function clearSignature() {
+            const canvas = document.getElementById('signature-pad');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            signaturePaths = [];
+            currentPath = [];
+        }
+
+        function generateSVG() {
+            if (signaturePaths.length === 0) {
+                return null;
+            }
+
+            let pathData = '';
+            signaturePaths.forEach(path => {
+                if (path.length > 0) {
+                    pathData += `M ${path[0].x} ${path[0].y} `;
+                    for (let i = 1; i < path.length; i++) {
+                        pathData += `L ${path[i].x} ${path[i].y} `;
+                    }
+                }
+            });
+
+            const svg = `<svg width="600" height="200" xmlns="http://www.w3.org/2000/svg"><path d="${pathData}" stroke="black" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            return svg;
+        }
+
+        // Form submission
+        async function submitSignature(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('name').value;
+            const idCard = document.getElementById('idCard').value;
+            const signature = generateSVG();
+
+            if (!signature) {
+                showFormMessage('Please provide your signature.', 'error');
+                return;
+            }
+
+            const petitionId = getPetitionIdFromUrl();
+            const apiUrl = `${API_CONFIG.baseUrl}/api/Sign/petition/${petitionId}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'accept': '*/*',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        idCard: idCard,
+                        signature: signature
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                showFormMessage('Signature submitted successfully!', 'success');
+                document.getElementById('signature-form').reset();
+                clearSignature();
+
+                // Refresh petition data to update signature count
+                setTimeout(() => {
+                    fetchPetition(petitionId);
+                }, 1000);
+
+            } catch (error) {
+                showFormMessage(`Failed to submit signature: ${error.message}`, 'error');
+            }
+        }
+
+        function showFormMessage(message, type) {
+            const messageDiv = document.getElementById('form-message');
+            messageDiv.textContent = message;
+            messageDiv.className = `form-message ${type}`;
+            messageDiv.style.display = 'block';
+
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const petitionId = getPetitionIdFromUrl();
+
+            if (!petitionId) {
+                showError('No petition ID found in URL. Please provide a valid petition URL.');
+                return;
+            }
+
+            // Get initial language from URL
+            currentLang = getLangFromUrl();
+
+            // Set up language switcher event listeners
+            document.getElementById('lang-en').addEventListener('click', () => switchLanguage('en'));
+            document.getElementById('lang-dv').addEventListener('click', () => switchLanguage('dv'));
+
+            // Initialize signature pad
+            initSignaturePad();
+
+            // Set up form submission
+            document.getElementById('signature-form').addEventListener('submit', submitSignature);
+
+            fetchPetition(petitionId);
+        });
+    </script>
+</body>
+</html>
