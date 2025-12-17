@@ -56,15 +56,18 @@ defer></script>
 
                 <form id="signature-form">
                     <div class="form-group">
-                        <label class="lang-en-content">Full Name</label>
+                        <label class="lang-en-content">Full Name (As on ID card)</label>
                         <label class="dhivehi lang-dv-content">ފުރިހަމަ ނަން</label>
-                        <input type="text" id="name" name="name" required>
+                        <input type="text" id="name" name="name" minlength="3" maxlength="30" required>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group idcard-group">
                         <label class="lang-en-content">ID Card Number</label>
                         <label class="dhivehi lang-dv-content">ކާޑު ނަންބަރު</label>
-                        <input type="text" id="idCard" name="idCard" required>
+                        <div class="idcard-input">
+                            <span class="idcard-prefix">A</span>
+                            <input type="tel" inputmode="numeric" pattern="\d{6}" id="idCard" name="idCard" maxlength="6" required placeholder="123456" aria-label="ID number, 6 digits" dir="ltr">
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -75,7 +78,15 @@ defer></script>
                         </div>
                     </div>
 
-                        <div id="form-message" class="form-message"></div>
+                    <div class="form-group consent-group">
+                        <label class="consent-label">
+                            <input type="checkbox" id="confirm-consent" name="confirmConsent" required>
+                            <span class="lang-en-content">I acknowledge my signature and information will be sent to the Parliament Petition Committee, and that the information I provide is true.</span>
+                            <span class="dhivehi lang-dv-content">I acknowledge my signature and information will be sent to the Parliament Petition Committee, and that the information I provide is true.</span>
+                        </label>
+                    </div>
+
+                    <div id="form-message" class="form-message"></div>
 
                         <!-- Cloudflare Turnstile: add callbacks so auto-render uses our handlers -->
                         <div class="cf-turnstile" data-sitekey="0x4AAAAAACHH4QC3wIhkCuhd"
@@ -122,7 +133,14 @@ defer></script>
         // Extract petition ID from URL query parameter
         function getPetitionIdFromUrl() {
             const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('id');
+            const id = urlParams.get('id');
+            
+            // Hardcoded mapping for cleaner URLs
+            if (id === 'dataprotection') {
+                return '7a315446-3c63-40cc-b382-86152bd8e591';
+            }
+            
+            return id;
         }
 
         // Get language from URL query parameter
@@ -166,6 +184,10 @@ defer></script>
 
             // Update URL
             updateUrlWithLang(lang);
+            // Set document direction for RTL languages (Dhivehi uses RTL script)
+            try {
+                document.documentElement.dir = (lang === 'dv') ? 'rtl' : 'ltr';
+            } catch (e) { }
         }
 
         // Fetch petition data
@@ -182,8 +204,30 @@ defer></script>
                 const data = await response.json();
                 displayPetition(data);
             } catch (error) {
-                showError(`Failed to load petition: ${error.message}`);
+                        // If fetching fails, show a visible dev notice and load dummy data
+                        console.warn('Failed to fetch petition, falling back to dummy data.', error);
+                        const errorDiv = document.getElementById('error');
+                        errorDiv.textContent = 'Failed to load petition from server — showing dummy data for development.';
+                        errorDiv.style.display = 'block';
+                        displayPetition(getDummyPetition(petitionId));
             }
+        }
+
+        // Return a dummy petition object useful for local development
+        function getDummyPetition(petitionId) {
+            const now = new Date();
+            return {
+                id: petitionId || 'dev-petition',
+                nameEng: 'Demo Petition: Improve Local Services',
+                nameDhiv: 'Demo Petition',
+                startDate: now.toLocaleDateString(),
+                signatureCount: 42,
+                authorDetails: {
+                    name: 'Demo Author'
+                },
+                petitionBodyEng: 'This is dummy petition content to enable local development. Replace with real data when the API is available.',
+                petitionBodyDhiv: 'Demo petition content (Dhivehi)'
+            };
         }
 
         // Display petition data
@@ -275,7 +319,14 @@ defer></script>
             const canvas = document.getElementById('signature-pad');
             const ctx = canvas.getContext('2d');
 
-            // Set up canvas style
+            // Resize canvas to match its display size (fixes coordinate offset bug)
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+            }
+
+            // Re-apply context settings after resize
             ctx.strokeStyle = '#000';
             ctx.lineWidth = 2;
             ctx.lineCap = 'round';
@@ -398,13 +449,29 @@ defer></script>
             e.preventDefault();
 
             const name = document.getElementById('name').value;
-            const idCard = document.getElementById('idCard').value;
+            const idCardDigits = document.getElementById('idCard').value;
+            const idCardPattern = /^\d{6}$/;
             const signature = generateSVG();
 
             if (!signature) {
                 showFormMessage('Please provide your signature.', 'error');
                 return;
             }
+
+            // Ensure the signer has confirmed consent/accuracy
+            const consentElem = document.getElementById('confirm-consent');
+            const consentChecked = consentElem ? consentElem.checked : true;
+            if (!consentChecked) {
+                showFormMessage('Please confirm that your submission will be sent to the Parliament Petition Committee and that your information is true.', 'error');
+                return;
+            }
+
+            // Validate ID digits (6 digits) and assemble full ID with prefix 'A'
+            if (!idCardPattern.test(idCardDigits)) {
+                showFormMessage('Please enter your ID number as 6 digits (numbers only).', 'error');
+                return;
+            }
+            const idCard = 'A' + idCardDigits;
 
             const petitionId = getPetitionIdFromUrl();
             const apiUrl = `${API_CONFIG.baseUrl}/api/Sign/petition/${petitionId}`;
@@ -618,6 +685,14 @@ defer></script>
 
             // Set up tweet modal listeners
             setupTweetModalListeners();
+
+            // Make clicking the 'A' prefix focus the ID input
+            document.querySelectorAll('.idcard-prefix').forEach(prefix => {
+                prefix.addEventListener('click', () => {
+                    const input = prefix.parentElement.querySelector('input[id="idCard"]');
+                    if (input) input.focus();
+                });
+            });
 
             fetchPetition(petitionId);
         });

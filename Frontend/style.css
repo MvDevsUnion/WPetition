@@ -223,11 +223,61 @@ body {
     border-color: #007bff;
 }
 
+/* ID card input: prefix + numeric field */
+.idcard-input {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    max-width: 260px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.idcard-prefix {
+    padding: 10px 12px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #333;
+    background: transparent;
+    border: none; /* prefix no longer has its own border */
+    cursor: text;
+}
+
+.idcard-input input[type="tel"] {
+    padding: 10px;
+    width: 120px;
+    font-size: 16px;
+    text-align: left;
+    border: none; /* input no longer has its own border */
+    outline: none;
+    background: transparent;
+}
+
+/* RTL adjustments: reverse order but keep the wrapper border intact */
+:dir(rtl) .idcard-input {
+    flex-direction: row-reverse;
+}
+
+:dir(rtl) .idcard-input input[type="tel"] {
+    text-align: left; /* keep digits LTR within RTL page */
+}
+
+/* Highlight wrapper on focus */
+.idcard-input:focus-within {
+    border-color: #007bff;
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.08);
+}
+
 .signature-pad-container {
     border: 2px solid #ddd;
     border-radius: 6px;
     background-color: white;
-    display: inline-block;
+    display: block;
     cursor: crosshair;
     margin-bottom: 10px;
 }
@@ -235,6 +285,10 @@ body {
 #signature-pad {
     display: block;
     touch-action: none;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 3;
 }
 
 .signature-actions {
@@ -311,16 +365,6 @@ body {
     .metadata {
         flex-direction: column;
         gap: 10px;
-    }
-
-    #signature-pad {
-        width: 100%;
-        max-width: 100%;
-    }
-
-    .signature-pad-container {
-        width: 100%;
-        overflow-x: auto;
     }
 
     .form-buttons {

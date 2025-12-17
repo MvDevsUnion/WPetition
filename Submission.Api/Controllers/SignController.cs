@@ -7,6 +7,7 @@ using MongoDB.Driver;
 using Submission.Api.Dto;
 using Submission.Api.Models;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Submission.Api.Controllers
 {
@@ -96,7 +97,12 @@ namespace Submission.Api.Controllers
             else
             {
                 // Invalid token - reject submission
-                return BadRequest($"Verification failed: {string.Join(", ", validation.ErrorCodes)}");
+                // Make joining error codes null-safe to avoid ArgumentNullException
+                var errorCodes = validation?.ErrorCodes;
+                var errors = (errorCodes != null && errorCodes.Length > 0)
+                    ? string.Join(", ", errorCodes)
+                    : "unknown";
+                return BadRequest($"Verification failed: {errors}");
             }
         }
 
@@ -186,7 +192,11 @@ namespace Submission.Api.Controllers
                 var response = await _httpClient.PostAsync(SiteverifyUrl, postContent);
                 var stringContent = await response.Content.ReadAsStringAsync();
 
-                return JsonSerializer.Deserialize<TurnstileResponse>(stringContent);
+                Console.WriteLine("Turnstile response: " + stringContent);
+
+                // deserialize with case-insensitive option; mapping for "error-codes" is handled by attribute on ErrorCodes
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                return JsonSerializer.Deserialize<TurnstileResponse>(stringContent, options);
             }
             catch (Exception)
             {
@@ -201,8 +211,25 @@ namespace Submission.Api.Controllers
 
     public class TurnstileResponse
     {
+        [JsonPropertyName("success")]
         public bool Success { get; set; }
+
+        // Cloudflare returns "error-codes" (with a hyphen) — map it explicitly
+        [JsonPropertyName("error-codes")]
         public string[] ErrorCodes { get; set; }
+
+        [JsonPropertyName("challenge_ts")]
+        public string ChallengeTs { get; set; }
+
+        public string Hostname { get; set; }
+
+        public string Action { get; set; }
+
+        // "cdata" may be present
+        public string Cdata { get; set; }
+
+        // metadata is optional and can be an object
+        public JsonElement? Metadata { get; set; }
     }
     #endregion
 }
