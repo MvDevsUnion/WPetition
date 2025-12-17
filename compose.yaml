@@ -4,4 +4,27 @@
     build:
       context: .
       dockerfile: Submission.Api/Dockerfile
+    networks:
+      - app-network
+    expose:
+      - "8080"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - MongoDbSettings__ConnectionString=mongodb://host.docker.internal:27017
+
+  nginx:
+    image: petition-nginx
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports:
+      - "9755:80"
+    depends_on:
+      - submission.api
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 

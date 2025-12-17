@@ -39,13 +39,26 @@ namespace Submission.Api.Controllers
             {
                 return Problem("Petitions Folder not found");
             }
-
         }
+
+
+        [HttpGet("petitions-list", Name = "GetPetitionsList")]
+        public IActionResult GetPetitionsList()
+        {
+            var list = _petitionRepository.FilterBy(x => x.Id != null);
+            return Ok(list);
+        }
+
 
 
         [HttpGet("create-petition-folder", Name = "CreatePetitionFolder")]
         public IActionResult create_petition_folder()
         {
+            if (Directory.Exists("Petitions"))
+            {
+                return Ok("Petitions folder already exists");
+            }
+
             try
             {
                 Directory.CreateDirectory("Petitions");

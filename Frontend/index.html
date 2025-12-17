@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <link rel="preconnect" href="https://challenges.cloudflare.com">
+    <script
+  src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+  async
+defer></script>
+
 </head>
 <body>
     <div class="container">
@@ -69,7 +75,13 @@
                         </div>
                     </div>
 
-                    <div id="form-message" class="form-message"></div>
+                        <div id="form-message" class="form-message"></div>
+
+                        <!-- Cloudflare Turnstile: add callbacks so auto-render uses our handlers -->
+                        <div class="cf-turnstile" data-sitekey="0x4AAAAAACHH4QC3wIhkCuhd"
+                            data-callback="onTurnstileSuccess"
+                            data-error-callback="onTurnstileError"
+                            data-expired-callback="onTurnstileExpired"></div>
 
                     <div class="form-buttons">
                         <button type="button" id="clear-signature" class="btn-secondary" title="Clear signature" aria-label="Clear signature">
@@ -84,10 +96,25 @@
         </div>
     </div>
 
+    <!-- Tweet Prompt Modal -->
+    <div id="tweet-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2 id="modal-title">Share this petition!</h2>
+            <p id="modal-text">Help spread the word by tweeting about this petition.</p>
+            <div class="modal-buttons">
+                <button id="tweet-button" class="btn-primary">
+                    <i class="fab fa-twitter"></i> <span id="tweet-btn-text">Tweet Now</span>
+                </button>
+                <button id="skip-tweet" class="btn-secondary"><span id="skip-btn-text">Maybe Later</span></button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // API Configuration - Change this for different environments
         const API_CONFIG = {
-            baseUrl: 'http://localhost:5299'  // Change to production URL when deploying
+            baseUrl: ''  // Empty for same-origin requests (Nginx proxies /api/* to backend)
         };
 
         let currentLang = 'en';
@@ -161,6 +188,9 @@
 
         // Display petition data
         function displayPetition(data) {
+            // Store petition data for tweet generation
+            currentPetitionData = data;
+
             document.getElementById('loading').style.display = 'none';
             document.getElementById('petition-content').style.display = 'block';
 
@@ -197,6 +227,49 @@
         let isDrawing = false;
         let signaturePaths = [];
         let currentPath = [];
+        // Turnstile widget state
+        let turnstileWidgetId = null;
+        let turnstileToken = null;
+
+        function onTurnstileSuccess(token) {
+            turnstileToken = token;
+        }
+
+        function onTurnstileError() {
+            turnstileToken = null;
+        }
+
+        function onTurnstileExpired() {
+            turnstileToken = null;
+        }
+
+        // Try to render Turnstile widget when API is available
+        function ensureTurnstileRendered() {
+            const container = document.querySelector('.cf-turnstile');
+            if (!container) return;
+            // If Turnstile already auto-rendered an iframe inside the container, don't render again
+            if (container.children.length > 0) {
+                // mark as auto-rendered
+                turnstileWidgetId = -1;
+                return;
+            }
+
+            if (window.turnstile && turnstileWidgetId === null) {
+                try {
+                    turnstileWidgetId = turnstile.render(container, {
+                        sitekey: container.getAttribute('data-sitekey'),
+                        callback: onTurnstileSuccess,
+                        'error-callback': onTurnstileError,
+                        'expired-callback': onTurnstileExpired
+                    });
+                } catch (e) {
+                    // If render fails, leave the element as-is (script may auto-render)
+                }
+            } else if (!window.turnstile) {
+                // Retry until turnstile script is available
+                setTimeout(ensureTurnstileRendered, 200);
+            }
+        }
 
         function initSignaturePad() {
             const canvas = document.getElementById('signature-pad');
@@ -336,6 +409,55 @@
             const petitionId = getPetitionIdFromUrl();
             const apiUrl = `${API_CONFIG.baseUrl}/api/Sign/petition/${petitionId}`;
 
+            // Ensure Turnstile widget is rendered
+            ensureTurnstileRendered();
+
+            // Obtain token: prefer the callback value, fall back to getResponse or execute
+            let token = turnstileToken;
+            if ((!token || token.length === 0) && window.turnstile && turnstileWidgetId !== null) {
+                try {
+                    if (typeof turnstile.getResponse === 'function') {
+                        let resp = null;
+                        try {
+                            if (turnstileWidgetId !== null && turnstileWidgetId >= 0) {
+                                resp = turnstile.getResponse(turnstileWidgetId);
+                            } else {
+                                // try without id (auto-rendered widgets may be retrievable this way)
+                                resp = turnstile.getResponse();
+                            }
+                        } catch (e) {
+                            resp = null;
+                        }
+                        if (resp) token = resp;
+                    }
+
+                    if ((!token || token.length === 0) && typeof turnstile.execute === 'function') {
+                        // Trigger challenge; wait up to ~5s for callback to set token
+                        try { turnstile.execute(turnstileWidgetId); } catch (err) { }
+                        token = await new Promise((resolve) => {
+                            let attempts = 0;
+                            const interval = setInterval(() => {
+                                attempts++;
+                                if (turnstileToken) {
+                                    clearInterval(interval);
+                                    resolve(turnstileToken);
+                                } else if (attempts > 25) { // ~5 seconds
+                                    clearInterval(interval);
+                                    resolve(null);
+                                }
+                            }, 200);
+                        });
+                    }
+                } catch (err) {
+                    token = null;
+                }
+            }
+
+            if (!token) {
+                showFormMessage('Please complete the captcha challenge.', 'error');
+                return;
+            }
+
             try {
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -346,7 +468,8 @@
                     body: JSON.stringify({
                         name: name,
                         idCard: idCard,
-                        signature: signature
+                        signature: signature,
+                        turnstileToken: token
                     })
                 });
 
@@ -355,6 +478,10 @@
                 }
 
                 showFormMessage('Signature submitted successfully!', 'success');
+
+                // Show tweet prompt modal
+                showTweetModal();
+
                 document.getElementById('signature-form').reset();
                 clearSignature();
 
@@ -365,6 +492,14 @@
 
             } catch (error) {
                 showFormMessage(`Failed to submit signature: ${error.message}`, 'error');
+            } finally {
+                // Reset the Turnstile widget so a fresh token is required next time
+                try {
+                    if (window.turnstile && turnstileWidgetId !== null) {
+                        turnstile.reset(turnstileWidgetId);
+                    }
+                } catch (e) { }
+                turnstileToken = null;
             }
         }
 
@@ -377,6 +512,84 @@
             setTimeout(() => {
                 messageDiv.style.display = 'none';
             }, 5000);
+        }
+
+        // Tweet Modal Functions
+        let currentPetitionData = null;
+
+        function updateModalLanguage() {
+            const translations = {
+                en: {
+                    title: 'Share this petition!',
+                    text: 'Help spread the word by tweeting about this petition.',
+                    tweetBtn: 'Tweet Now',
+                    skipBtn: 'Maybe Later'
+                },
+                dv: {
+                    title: 'Share this petition!',
+                    text: 'Help spread the word by tweeting about this petition.',
+                    tweetBtn: 'Tweet Now',
+                    skipBtn: 'Maybe Later'
+                }
+            };
+
+            const t = translations[currentLang];
+
+            document.getElementById('modal-title').textContent = t.title;
+            document.getElementById('modal-text').textContent = t.text;
+            document.getElementById('tweet-btn-text').textContent = t.tweetBtn;
+            document.getElementById('skip-btn-text').textContent = t.skipBtn;
+        }
+
+        function showTweetModal() {
+            updateModalLanguage();
+            const modal = document.getElementById('tweet-modal');
+            modal.classList.add('show');
+        }
+
+        function hideTweetModal() {
+            const modal = document.getElementById('tweet-modal');
+            modal.classList.remove('show');
+        }
+
+        function generateTweetText() {
+            if (!currentPetitionData) return '';
+
+            const petitionName = currentLang === 'dv' ? currentPetitionData.nameDhiv : currentPetitionData.nameEng;
+            const petitionUrl = `${window.location.origin}${window.location.pathname}?id=${currentPetitionData.id}`;
+
+            return `I just signed "${petitionName}"! \n\nAdd your signature: ${petitionUrl}`;
+        }
+
+        function openTwitterIntent() {
+            const tweetText = generateTweetText();
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+            console.log(twitterUrl);
+            window.open(twitterUrl, '_blank');
+            hideTweetModal();
+        }
+
+        function setupTweetModalListeners() {
+            const modal = document.getElementById('tweet-modal');
+            const tweetButton = document.getElementById('tweet-button');
+            const skipButton = document.getElementById('skip-tweet');
+            const closeButton = document.querySelector('.close-modal');
+
+            // Tweet button click
+            tweetButton.addEventListener('click', openTwitterIntent);
+
+            // Skip button click
+            skipButton.addEventListener('click', hideTweetModal);
+
+            // Close X click
+            closeButton.addEventListener('click', hideTweetModal);
+
+            // Click outside modal
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    hideTweetModal();
+                }
+            });
         }
 
         // Initialize on page load
@@ -397,9 +610,14 @@
 
             // Initialize signature pad
             initSignaturePad();
+            // Render Turnstile (retry until script available)
+            ensureTurnstileRendered();
 
             // Set up form submission
             document.getElementById('signature-form').addEventListener('submit', submitSignature);
+
+            // Set up tweet modal listeners
+            setupTweetModalListeners();
 
             fetchPetition(petitionId);
         });

@@ -2,9 +2,11 @@ using Ashi.MongoInterface.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using Submission.Api.Dto;
 using Submission.Api.Models;
+using System.Text.Json;
 
 namespace Submission.Api.Controllers
 {
@@ -17,62 +19,85 @@ namespace Submission.Api.Controllers
         private readonly IMongoRepository<PetitionDetail> _detailRepository;
         private readonly IMongoRepository<Signature> _signatureRepository;
         private readonly IMemoryCache _cache;
+        public readonly TurnstileService _turnstileService;
 
         public SignController(
             IMongoRepository<Author> authorRepository,
             IMongoRepository<PetitionDetail> detailRepository,
             IMongoRepository<Signature> signatureRepository,
-            IMemoryCache cache)
+            IMemoryCache cache, TurnstileService turnstileService)
         {
             _authorRepository = authorRepository;
             _detailRepository = detailRepository;
             _signatureRepository = signatureRepository;
             _cache = cache;
+            _turnstileService = turnstileService;
         }
 
         [HttpPost("petition/{petition_id}", Name = "SignPetition")]
         [EnableRateLimiting("SignPetitionPolicy")]
         public async Task<IActionResult> SignDisHoe([FromRoute] Guid petition_id, [FromBody] WidgetsDto body)
         {
-            var cacheKey = $"petition_{petition_id}";
+            var remoteip = HttpContext.Request.Headers["CF-Connecting-IP"].FirstOrDefault() ??
+                   HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault() ??
+                   HttpContext.Connection.RemoteIpAddress?.ToString();
 
-            var pet = await _detailRepository.FindByIdAsync(petition_id);
+            if (body.turnstileToken == null)
+                return BadRequest("Turnstile token is missing");
 
-            if (pet == null)
-                return NotFound();
+            Console.WriteLine("Token received: " + body.turnstileToken);
 
-            //TODO : add svg validation 
+            var validation = await _turnstileService.ValidateTokenAsync(body.turnstileToken, remoteip);
 
-
-            //check to see if the same person signed the petition already
-            //if dupe send error saying user already signed 
-            var dupe = await _signatureRepository.FindOneAsync(x => x.IdCard == body.IdCard);
-            if (dupe != null)
-                return Problem("You already signed this petition");
-
-            //add signature to the db
-            await _signatureRepository.InsertOneAsync(new Signature
+            if (validation.Success)
             {
-                IdCard = body.IdCard,
-                Name = body.Name,
-                Signature_SVG = body.Signature,
-                Timestamp = DateTime.Now,
-                PetitionId = petition_id
-            });
+                //why??
+                var cacheKey = $"petition_{petition_id}";
 
-            //update signature count 
-            if (pet.SignatureCount == null)
-            {
-                pet.SignatureCount = 0;
+                var pet = await _detailRepository.FindByIdAsync(petition_id);
+
+                if (pet == null)
+                    return NotFound();
+
+                //TODO : add svg validation 
+                //fuck i still havent done this
+
+
+                //check to see if the same person signed the petition already
+                //if dupe send error saying user already signed 
+                var dupe = await _signatureRepository.FindOneAsync(x => x.IdCard == body.IdCard);
+                if (dupe != null)
+                    return Problem("You already signed this petition");
+
+                //add signature to the db
+                await _signatureRepository.InsertOneAsync(new Signature
+                {
+                    IdCard = body.IdCard,
+                    Name = body.Name,
+                    Signature_SVG = body.Signature,
+                    Timestamp = DateTime.Now,
+                    PetitionId = petition_id
+                });
+
+                //update signature count 
+                if (pet.SignatureCount == null)
+                {
+                    pet.SignatureCount = 0;
+                }
+
+                var count_update_filter = Builders<PetitionDetail>.Filter.Eq("_id", petition_id);
+                var Countupdate = Builders<PetitionDetail>.Update.Inc("SignatureCount", 1);
+                await _detailRepository.UpdateOneAsync(count_update_filter, Countupdate);
+
+                _cache.Remove(cacheKey);
+
+                return Ok("your signature has been submitted");
             }
-
-            var count_update_filter = Builders<PetitionDetail>.Filter.Eq("_id", petition_id);
-            var Countupdate = Builders<PetitionDetail>.Update.Inc("SignatureCount", 1);
-            await _detailRepository.UpdateOneAsync(count_update_filter, Countupdate);
-
-            _cache.Remove(cacheKey);
-
-            return Ok("your signature has been submitted");
+            else
+            {
+                // Invalid token - reject submission
+                return BadRequest($"Verification failed: {string.Join(", ", validation.ErrorCodes)}");
+            }
         }
 
         [HttpGet("petition/{petition_id}", Name = "GetPetition")]
@@ -121,4 +146,63 @@ namespace Submission.Api.Controllers
             return Ok(dto);
         }
     }
+
+
+    #region Turnstile Service
+    public class TurnstileSettings
+    {
+        public string SecretKey { get; set; } = string.Empty;
+    }
+
+    public class TurnstileService
+    {
+        private readonly HttpClient _httpClient;
+        private readonly string _secretKey;
+        private const string SiteverifyUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+        public TurnstileService(HttpClient httpClient, IOptions<TurnstileSettings> options)
+        {
+            _httpClient = httpClient;
+            _secretKey = options?.Value?.SecretKey ?? throw new ArgumentNullException(nameof(options), "Turnstile:SecretKey must be configured in appsettings.json");
+        }
+
+        public async Task<TurnstileResponse> ValidateTokenAsync(string token, string remoteip = null)
+        {
+            var parameters = new Dictionary<string, string>
+            {
+                { "secret", _secretKey },
+                { "response", token }
+            };
+
+            if (!string.IsNullOrEmpty(remoteip))
+            {
+                parameters.Add("remoteip", remoteip);
+            }
+
+            var postContent = new FormUrlEncodedContent(parameters);
+
+            try
+            {
+                var response = await _httpClient.PostAsync(SiteverifyUrl, postContent);
+                var stringContent = await response.Content.ReadAsStringAsync();
+
+                return JsonSerializer.Deserialize<TurnstileResponse>(stringContent);
+            }
+            catch (Exception)
+            {
+                return new TurnstileResponse
+                {
+                    Success = false,
+                    ErrorCodes = new[] { "internal-error" }
+                };
+            }
+        }
+    }
+
+    public class TurnstileResponse
+    {
+        public bool Success { get; set; }
+        public string[] ErrorCodes { get; set; }
+    }
+    #endregion
 }
