@@ -1,0 +1,19 @@
+name: Sync Gitea Mirror on Push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync-mirror:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Gitea Mirror Sync
+        run: |
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.SAR_GITEA_TOKEN }}" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            https://git.shihaam.dev/api/v1/repos/${{ vars.SAR_GITEA_REPO_OWNER }}/${{ vars.SAR_GITEA_REPO_NAME }}/mirror-sync

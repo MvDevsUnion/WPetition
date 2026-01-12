@@ -1,0 +1,16 @@
+services:
+  api:
+    build:
+      context: ../../
+      dockerfile: .build/prod/app.Dockerfile
+    hostname: api
+    image: git.shihaam.dev/mvdevsunion/wpetition/api
+
+  frontend:
+    build:
+      context: ../../
+      dockerfile: .build/prod/frontend.Dockerfile
+    hostname: frontend
+    image: git.shihaam.dev/mvdevsunion/wpetition/frontend
+    depends_on:
+      - api

@@ -1,0 +1,45 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  docker:
+    name: Build and Push Docker Images
+    runs-on: builder
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ vars.DOCKER_REGISTRY_URL }}
+          username: ${{ vars.DOCKER_REGISTRY_USER }}
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Build and push docker images
+        working-directory: .build/prod
+        run: docker compose --progress build --push
+
+
+      - name: Deploy production
+        if: github.event_name != 'pull_request'
+        run: |
+             ssh root@10.0.1.39 -t "cd /mnt && \
+             docker compose --progress plain pull && \
+             docker compose --progress plain down && \
+             docker compose --progress plain up -d"
+
+      - name: Clean up dangling images
+        if: github.event_name != 'pull_request'
+        run: ssh root@10.0.1.39 -t "docker image prune -f"
