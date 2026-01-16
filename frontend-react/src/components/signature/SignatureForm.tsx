@@ -203,7 +203,7 @@ export function SignatureForm({ language, onSubmit }: SignatureFormProps) {
           <div className="border border-input rounded-lg overflow-hidden shadow-sm hover:border-ring/50 transition-colors">
             <SignaturePad ref={signaturePadRef} />
           </div>
-          <p className="text-xs text-slate-500">
+          <p className={`text-xs text-slate-500 ${isRtl ? "dhivehi" : ""}`}>
             {language === "en"
               ? "Sign in the box above"
               : "މަތީގައިވާ ގޮޅީގައި ސޮއި ކުރައްވާ"}
