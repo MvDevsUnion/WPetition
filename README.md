@@ -52,6 +52,42 @@ go to www.yourdomain.com/index.html?id=[your petition id] and it should all be s
 
 for more info check the readme inside the api folder
 
+## docker compose yaml
+Deploy Production
+```yaml
+services:
+    api:
+      image: git.shihaam.dev/mvdevsunion/wpetition/api:latest
+      restart: unless-stopped
+      environment:
+        - ASPNETCORE_ENVIRONMENT=Production
+        - ASPNETCORE_URLS=http://+:9755
+        - MongoDbSettings__ConnectionString=mongodb://admin:yourpassword@mongodb:27017
+      depends_on:
+        - mongodb
+      volumes:
+        - ./data/api/config/appsettings.Production.json:/app/appsettings.Production.json:ro
+
+    frontend:
+      image: git.shihaam.dev/mvdevsunion/wpetition/frontend:latest
+      restart: unless-stopped
+      ports:
+        - "80:80"
+      depends_on:
+        - api
+      volumes:
+        - ./data/frontend/index.html:/usr/share/nginx/html/index.html
+
+    mongodb:
+      image: mongo:latest
+      restart: unless-stopped
+      volumes:
+        - ./data/mongodb:/data/db
+      environment:
+        - MONGO_INITDB_ROOT_USERNAME=admin
+        - MONGO_INITDB_ROOT_PASSWORD=yourpassword
+```
+
 ## Troubleshooting
 
 ### Common Issues
