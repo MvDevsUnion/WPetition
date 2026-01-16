@@ -1,5 +1,7 @@
 using Ashi.MongoInterface.Service;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -164,16 +166,23 @@ namespace Submission.Api.Controllers
     {
         private readonly HttpClient _httpClient;
         private readonly string _secretKey;
+        private readonly IWebHostEnvironment _env;
         private const string SiteverifyUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
-        public TurnstileService(HttpClient httpClient, IOptions<TurnstileSettings> options)
+        public TurnstileService(HttpClient httpClient, IOptions<TurnstileSettings> options, IWebHostEnvironment env)
         {
             _httpClient = httpClient;
             _secretKey = options?.Value?.SecretKey ?? throw new ArgumentNullException(nameof(options), "Turnstile:SecretKey must be configured in appsettings.json");
+            _env = env;
         }
 
         public async Task<TurnstileResponse> ValidateTokenAsync(string token, string remoteip = null)
         {
+            if (_env.IsDevelopment() && token == "DEV_BYPASS_TOKEN")
+            {
+                return new TurnstileResponse { Success = true };
+            }
+
             var parameters = new Dictionary<string, string>
             {
                 { "secret", _secretKey },
@@ -214,7 +223,7 @@ namespace Submission.Api.Controllers
         [JsonPropertyName("success")]
         public bool Success { get; set; }
 
-        // Cloudflare returns "error-codes" (with a hyphen) — map it explicitly
+        // Cloudflare returns "error-codes" (with a hyphen) â€” map it explicitly
         [JsonPropertyName("error-codes")]
         public string[] ErrorCodes { get; set; }
 

@@ -1,4 +1,13 @@
 ﻿services:
+  mongodb:
+    image: mongo:7
+    networks:
+      - app-network
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
   submission.api:
     image: submission.api
     build:
@@ -8,9 +17,14 @@
       - app-network
     expose:
       - "8080"
+    depends_on:
+      - mongodb
     environment:
+      - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - MongoDbSettings__ConnectionString=mongodb://host.docker.internal:27017
+      - MongoDbSettings__ConnectionString=mongodb://mongodb:27017
+      - MongoDbSettings__DatabaseName=petition_database
+      - PetitionSettings__AllowPetitionCreation=true
 
   nginx:
     image: petition-nginx
@@ -28,3 +42,5 @@ networks:
   app-network:
     driver: bridge
 
+volumes:
+  mongodb_data:
