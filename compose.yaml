@@ -27,10 +27,10 @@
       - PetitionSettings__AllowPetitionCreation=true
 
   nginx:
-    image: petition-nginx
+    image: petition-frontend
     build:
       context: .
-      dockerfile: nginx/Dockerfile
+      dockerfile: frontend-react/Dockerfile
     ports:
       - "9755:80"
     depends_on:

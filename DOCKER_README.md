@@ -13,8 +13,8 @@ This project uses Docker Compose to run both the frontend and API in containers 
                  │
                  ▼
 ┌─────────────────────────────────────────┐
-│  Nginx Container                        │
-│  - Serves static frontend files         │
+│  Frontend Container (Nginx)             │
+│  - Serves built React/Vite app          │
 │  - Proxies /api/* to backend            │
 │  - Proxies /swagger to backend          │
 └────────────────┬────────────────────────┘
@@ -45,7 +45,7 @@ docker compose up -d
 ### 2. Access the Application
 
 - **Frontend**: http://localhost:9755
-- **API** (via proxy): http://localhost:9755/api/*
+- **API** (via proxy): http://localhost:9755/api/\*
 - **Swagger UI**: http://localhost:9755/swagger
 
 ### 3. View Logs
@@ -67,10 +67,10 @@ docker compose down
 
 ## Making Changes
 
-### Frontend Changes (HTML/CSS/JS)
+### Frontend Changes (React/TypeScript)
 
-1. Edit files in the `Frontend/` directory
-2. Rebuild the nginx container:
+1. Edit files in the `frontend-react/src/` directory
+2. Rebuild the frontend container:
    ```bash
    docker compose build nginx && docker compose up -d
    ```
@@ -147,6 +147,7 @@ docker compose build submission.api
 The API connects to MongoDB on your host machine using `host.docker.internal:27017`.
 
 To change the MongoDB connection:
+
 1. Edit `compose.yaml`
 2. Update the `MongoDbSettings__ConnectionString` environment variable
 3. Restart containers
@@ -159,20 +160,22 @@ environment:
 ### Port Configuration
 
 The application is exposed on port 9755. To change this:
+
 1. Edit `compose.yaml`
 2. Update the nginx ports mapping:
    ```yaml
    ports:
-     - "9755:80"  # Change 9755 to your desired port
+     - "9755:80" # Change 9755 to your desired port
    ```
 3. Restart containers
 
 ### API Base URL (Frontend)
 
 The frontend API configuration is in `Frontend/index.html` at line 105:
+
 ```javascript
 const API_CONFIG = {
-    baseUrl: ''  // Empty for same-origin requests
+  baseUrl: "", // Empty for same-origin requests
 };
 ```
 
@@ -184,12 +187,13 @@ This is set to empty because Nginx proxies all `/api/*` requests to the backend.
 .
 ├── compose.yaml                    # Docker Compose configuration
 ├── nginx/
-│   ├── Dockerfile                  # Nginx container definition
 │   └── nginx.conf                  # Nginx configuration
-├── Frontend/                       # Static frontend files
-│   ├── index.html
-│   ├── style.css
-│   └── fonts/
+├── frontend-react/                 # React/Vite frontend
+│   ├── Dockerfile                  # Multi-stage build (Node + Nginx)
+│   ├── src/                        # React source files
+│   ├── public/                     # Static assets
+│   └── dist/                       # Built output (generated)
+├── Frontend/                       # Legacy static frontend (deprecated)
 └── Submission.Api/
     ├── Dockerfile                  # API container definition
     └── ...                         # .NET source files
@@ -202,6 +206,7 @@ This is set to empty because Nginx proxies all `/api/*` requests to the backend.
 **Problem**: API can't connect to MongoDB on host
 
 **Solution**:
+
 1. Verify MongoDB is running on host: `mongosh --eval "db.version()"`
 2. Check MongoDB is listening on `0.0.0.0:27017` not just `127.0.0.1`
 3. Check Windows Firewall isn't blocking the connection
@@ -212,6 +217,7 @@ This is set to empty because Nginx proxies all `/api/*` requests to the backend.
 **Problem**: Error binding to port 9755
 
 **Solution**:
+
 1. Find what's using the port: `netstat -ano | findstr :9755`
 2. Either stop that process or change the port in `compose.yaml`
 
@@ -220,6 +226,7 @@ This is set to empty because Nginx proxies all `/api/*` requests to the backend.
 **Problem**: Container crashes on startup
 
 **Solution**:
+
 ```bash
 # Check logs for errors
 docker compose logs submission.api
@@ -237,6 +244,7 @@ docker compose up -d
 **Problem**: Code changes don't appear after rebuild
 
 **Solution**:
+
 ```bash
 # Force rebuild and restart
 docker compose down
@@ -249,6 +257,7 @@ docker compose up -d
 **Problem**: Nginx can't reach the API
 
 **Solution**:
+
 1. Check API container is running: `docker compose ps`
 2. Check API logs: `docker compose logs submission.api`
 3. Verify API is listening on port 8080
@@ -292,6 +301,7 @@ services:
 ## Support
 
 For issues or questions:
+
 1. Check container logs: `docker compose logs -f`
 2. Verify all services are running: `docker compose ps`
 3. Review this documentation
