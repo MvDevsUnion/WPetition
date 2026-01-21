@@ -11,7 +11,11 @@ export function LanguageSwitcher({
   onLanguageChange,
 }: LanguageSwitcherProps) {
   return (
-    <div className="flex gap-1 justify-end mb-6">
+    <div
+      className={`flex gap-1 mb-6 ${
+        language === "en" ? "justify-end" : "justify-start"
+      }`}
+    >
       <div className="bg-slate-100 p-1 rounded-full inline-flex border border-slate-200">
         <Button
           variant={language === "en" ? "default" : "ghost"}

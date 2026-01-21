@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SignaturePad, type SignaturePadRef } from "./SignaturePad";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { Eraser, Check, CheckCircle, AlertCircle } from "lucide-react";
 import type { Language } from "@/types/petition";
 
@@ -31,6 +31,7 @@ export function SignatureForm({ language, onSubmit }: SignatureFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const signaturePadRef = useRef<SignaturePadRef>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const isRtl = language === "dv";
 
   const handleClear = () => {
@@ -126,6 +127,8 @@ export function SignatureForm({ language, onSubmit }: SignatureFormProps) {
           : "ސޮއި ހުށަހެޅުމުން ކުށެއް ދިމާވެއްޖެ.",
         "error",
       );
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     } finally {
       setIsSubmitting(false);
     }
