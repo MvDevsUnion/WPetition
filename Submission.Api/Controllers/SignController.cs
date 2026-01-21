@@ -67,7 +67,7 @@ namespace Submission.Api.Controllers
 
                 //check to see if the same person signed the petition already
                 //if dupe send error saying user already signed 
-                var dupe = await _signatureRepository.FindOneAsync(x => x.IdCard == body.IdCard);
+                var dupe = await _signatureRepository.FindOneAsync(x => x.IdCard == body.IdCard && x.PetitionId == petition_id);
                 if (dupe != null)
                     return Problem("You already signed this petition");
 
