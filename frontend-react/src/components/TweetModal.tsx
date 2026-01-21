@@ -6,7 +6,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
 import type { PetitionDetails, Language } from "@/types/petition";
 
 // X/Twitter icon from Simple Icons
