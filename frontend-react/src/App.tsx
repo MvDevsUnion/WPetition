@@ -50,6 +50,9 @@ function App() {
         <div className="max-w-4xl mx-auto bg-card rounded-lg shadow-lg p-10">
           <ErrorState message="No petition ID found in URL. Please provide a valid petition URL." />
         </div>
+        <footer className="text-center text-slate-500 text-sm mt-6 pb-4">
+          Powered by Mv Devs Union
+        </footer>
       </div>
     );
   }
@@ -98,6 +101,10 @@ function App() {
           </>
         )}
       </div>
+
+      <footer className="text-center text-slate-500 text-sm mt-6 pb-4">
+        Powered by Mv Devs Union
+      </footer>
     </div>
   );
 }
