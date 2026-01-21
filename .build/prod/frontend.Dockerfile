@@ -1,6 +1,8 @@
 # Build stage - compile the React/Vite app
 FROM node:20-alpine AS builder
 
+ARG VITE_TURNSTILE_SITEKEY
+
 WORKDIR /app
 
 # Copy package files first for better caching
@@ -12,8 +14,8 @@ RUN npm ci
 # Copy source files
 COPY frontend-react/ ./
 
-# Build the production bundle
-RUN npm run build
+# Build the production bundle with env vars baked in
+RUN VITE_TURNSTILE_SITEKEY=$VITE_TURNSTILE_SITEKEY npm run build
 
 # Production stage - serve with Nginx
 FROM nginx:alpine

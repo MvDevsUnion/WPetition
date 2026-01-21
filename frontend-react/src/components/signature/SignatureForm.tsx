@@ -256,7 +256,7 @@ export function SignatureForm({ language, onSubmit }: SignatureFormProps) {
         {/* Turnstile and Submit */}
         <div className="flex flex-col items-center sm:items-start gap-4">
           <Turnstile
-            siteKey="0x4AAAAAACHH4QC3wIhkCuhd"
+            siteKey={import.meta.env.VITE_TURNSTILE_SITEKEY}
             onSuccess={setTurnstileToken}
             onError={() => setTurnstileToken(null)}
             onExpire={() => setTurnstileToken(null)}

@@ -8,3 +8,4 @@ riderModule.iml
 /.vs/ProjectEvaluation
 /Submission.Api/Petitions
 /Submission.Api/appsettings.json
+.env
