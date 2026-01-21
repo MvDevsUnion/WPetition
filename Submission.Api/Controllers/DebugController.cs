@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Submission.Api.Configuration;
+using Submission.Api.Dto;
 using Submission.Api.Models;
 using System.Globalization;
 using YamlDotNet.Serialization;
@@ -188,6 +189,90 @@ namespace Submission.Api.Controllers
             }
         }
 
+        // New endpoint: form-based petition upload
+        [HttpPost("upload-petition-form", Name = "UploadPetitionForm")]
+        public async Task<IActionResult> UploadPetitionForm([FromForm] PetitionFormDto form)
+        {
+            // Check if petition creation is allowed
+            if (!_petitionSettings.AllowPetitionCreation)
+            {
+                return StatusCode(403, new { message = "Petition creation is disabled. Set 'PetitionSettings:AllowPetitionCreation' to true in appsettings.json" });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                // Parse start date (format: dd-MM-yyyy)
+                DateOnly startDate;
+                try
+                {
+                    startDate = DateOnly.ParseExact(form.StartDate, "dd-MM-yyyy", CultureInfo.InvariantCulture);
+                }
+                catch (FormatException)
+                {
+                    return BadRequest(new { message = "StartDate must be in format dd-MM-yyyy" });
+                }
+
+                var petitionId = Guid.NewGuid();
+
+                // Create or get author
+                var author = await _authorRepository.FindOneAsync(x => x.NID == form.AuthorNid);
+                if (author == null)
+                {
+                    author = new Author
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = form.AuthorName,
+                        NID = form.AuthorNid
+                    };
+                    await _authorRepository.InsertOneAsync(author);
+                }
+
+                // Create petition
+                var petition = new PetitionDetail
+                {
+                    Id = petitionId,
+                    StartDate = startDate,
+                    NameDhiv = form.NameDhiv,
+                    NameEng = form.NameEng,
+                    AuthorId = author.Id,
+                    PetitionBodyDhiv = form.PetitionBodyDhiv,
+                    PetitionBodyEng = form.PetitionBodyEng,
+                    SignatureCount = 0
+                };
+
+                await _petitionRepository.InsertOneAsync(petition);
+
+                // Build markdown file content and save to Petitions folder
+                var frontmatter = $"---\nstartDate: {form.StartDate}\nnameDhiv: \"{EscapeYaml(form.NameDhiv)}\"\nnameEng: \"{EscapeYaml(form.NameEng)}\"\nauthor:\n  name: \"{EscapeYaml(form.AuthorName)}\"\n  nid: \"{EscapeYaml(form.AuthorNid)}\"\n---\n";
+                var body = $"## Petition Body (Dhivehi)\n\n{form.PetitionBodyDhiv}\n\n## Petition Body (English)\n\n{form.PetitionBodyEng}\n";
+                var fileContent = frontmatter + "\n" + body;
+
+                Directory.CreateDirectory("Petitions");
+                var newFileName = $"{Guid.NewGuid()}.md";
+                var filePath = Path.Combine("Petitions", newFileName);
+
+                await System.IO.File.WriteAllTextAsync(filePath, fileContent);
+
+                return Ok(new
+                {
+                    message = "Petition created successfully",
+                    petitionId = petitionId,
+                    fileName = newFileName,
+                    filePath = filePath,
+                    authorId = author.Id
+                });
+            }
+            catch (Exception e)
+            {
+                return Problem(e.Message);
+            }
+        }
+
         private (string frontmatter, string body) ParseMarkdownFile(string content)
         {
             var lines = content.Split('\n');
@@ -249,6 +334,12 @@ namespace Submission.Api.Controllers
             }
 
             return (dhivehiBody, englishBody);
+        }
+
+        private static string EscapeYaml(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            return value.Replace("\"", "\\\"");
         }
     }
 }
