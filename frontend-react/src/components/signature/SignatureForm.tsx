@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SignaturePad, type SignaturePadRef } from "./SignaturePad";
 import { Turnstile } from "@marsidev/react-turnstile";
-import { Eraser, Send, CheckCircle, AlertCircle } from "lucide-react";
+import { Eraser, Check, CheckCircle, AlertCircle } from "lucide-react";
 import type { Language } from "@/types/petition";
 
 interface SignatureFormProps {
@@ -200,8 +200,18 @@ export function SignatureForm({ language, onSubmit }: SignatureFormProps) {
           <Label className={`text-slate-700 ${isRtl ? "dhivehi" : ""}`}>
             {language === "en" ? "Signature" : "ސޮއި"}
           </Label>
-          <div className="border border-input rounded-lg overflow-hidden shadow-sm hover:border-ring/50 transition-colors">
+          <div className="relative border border-input rounded-lg overflow-hidden shadow-sm hover:border-ring/50 transition-colors">
             <SignaturePad ref={signaturePadRef} />
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleClear}
+              size="icon"
+              className="absolute top-2 right-2 h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50/80 bg-white/70 backdrop-blur-sm"
+              title={language === "en" ? "Clear Signature" : "ފޮހެލާ"}
+            >
+              <Eraser className="h-4 w-4" />
+            </Button>
           </div>
           <p className={`text-xs text-slate-500 ${isRtl ? "dhivehi" : ""}`}>
             {language === "en"
@@ -243,38 +253,25 @@ export function SignatureForm({ language, onSubmit }: SignatureFormProps) {
           </Alert>
         )}
 
-        {/* Turnstile */}
-        <div className="flex justify-center sm:justify-start">
+        {/* Turnstile and Submit */}
+        <div className="flex flex-col items-center sm:items-start gap-4">
           <Turnstile
             siteKey="0x4AAAAAACHH4QC3wIhkCuhd"
             onSuccess={setTurnstileToken}
             onError={() => setTurnstileToken(null)}
             onExpire={() => setTurnstileToken(null)}
           />
-        </div>
-
-        {/* Form Buttons */}
-        <div className={`flex gap-4 pt-4 ${isRtl ? "flex-row-reverse" : ""}`}>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleClear}
-            className={`text-slate-500 hover:text-slate-900 ${isRtl ? "dhivehi" : ""}`}
-          >
-            <Eraser className="h-4 w-4 mr-2" />
-            {language === "en" ? "Clear Signature" : "ފޮހެލާ"}
-          </Button>
           <Button
             type="submit"
             disabled={isSubmitting}
             size="lg"
-            className={`min-w-[140px] shadow-md hover:shadow-lg transition-all ${isRtl ? "dhivehi" : ""}`}
+            className={`w-[300px] bg-green-600 hover:bg-green-700 shadow-md hover:shadow-lg transition-all ${isRtl ? "dhivehi" : ""}`}
           >
             {isSubmitting ? (
               <span className="animate-pulse">Submitting...</span>
             ) : (
               <>
-                <Send className="h-4 w-4 mr-2" />
+                <Check className="h-5 w-5 mr-2" />
                 {language === "en" ? "Submit Petition" : "ހުށަހެޅުއް"}
               </>
             )}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { usePetition } from "@/hooks/usePetition";
 import { useLanguage } from "@/hooks/useLanguage";
 import { submitSignature } from "@/lib/api";
@@ -10,6 +10,7 @@ import { AuthorCard } from "@/components/petition/AuthorCard";
 import { PetitionBody } from "@/components/petition/PetitionBody";
 import { SignatureForm } from "@/components/signature/SignatureForm";
 import { TweetModal } from "@/components/TweetModal";
+import { PenLine } from "lucide-react";
 
 function getPetitionIdFromUrl(): string | null {
   const urlParams = new URLSearchParams(window.location.search);
@@ -23,6 +24,11 @@ function App() {
   const { petition, loading, error, refetch } = usePetition(petitionId);
   const { language, setLanguage } = useLanguage();
   const [showTweetModal, setShowTweetModal] = useState(false);
+  const signatureFormRef = useRef<HTMLDivElement>(null);
+
+  const scrollToSignForm = () => {
+    signatureFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const handleSubmit = async (data: {
     name: string;
@@ -77,6 +83,14 @@ function App() {
 
                 <PetitionHeader petition={petition} language={language} />
 
+                <button
+                  onClick={scrollToSignForm}
+                  className={`w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors ${language === "dv" ? "flex-row-reverse dhivehi" : ""}`}
+                >
+                  <PenLine className="w-5 h-5" />
+                  {language === "dv" ? "މިހާރު ސޮއި ކުރައްވާ" : "Sign Now"}
+                </button>
+
                 <AuthorCard
                   author={petition.authorDetails}
                   language={language}
@@ -88,7 +102,9 @@ function App() {
                   language={language}
                 />
 
-                <SignatureForm language={language} onSubmit={handleSubmit} />
+                <div ref={signatureFormRef}>
+                  <SignatureForm language={language} onSubmit={handleSubmit} />
+                </div>
 
                 <TweetModal
                   open={showTweetModal}

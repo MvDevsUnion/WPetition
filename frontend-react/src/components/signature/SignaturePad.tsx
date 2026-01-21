@@ -60,8 +60,7 @@ export const SignaturePad = forwardRef<SignaturePadRef, SignaturePadProps>(
           ref={sigCanvasRef}
           penColor="black"
           canvasProps={{
-            className: "w-full",
-            style: { aspectRatio: "3", height: "auto" },
+            className: "w-full aspect-[2/1] md:aspect-[3/1]",
           }}
           onBegin={onBegin}
           onEnd={onEnd}
