@@ -1,7 +1,5 @@
 using Ashi.MongoInterface.Service;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
@@ -54,7 +52,6 @@ namespace Submission.Api.Controllers
 
             if (validation.Success)
             {
-                //why??
                 var cacheKey = $"petition_{petition_id}";
 
                 var pet = await _detailRepository.FindByIdAsync(petition_id);
@@ -62,9 +59,11 @@ namespace Submission.Api.Controllers
                 if (pet == null)
                     return NotFound();
 
-                //TODO : add svg validation 
-                //fuck i still havent done this
-
+                // SVG validation: reject bad/malicious SVGs before persisting
+                if (!Submission.Api.Services.SvgValidator.TryValidate(body.Signature, out var svgError))
+                {
+                    return BadRequest($"Invalid signature SVG: {svgError}");
+                }
 
                 //check to see if the same person signed the petition already
                 //if dupe send error saying user already signed 
