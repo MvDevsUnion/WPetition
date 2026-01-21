@@ -62,7 +62,7 @@ export function TweetModal({
           </DialogTitle>
           <DialogDescription className={language === "dv" ? "dhivehi" : ""}>
             {language === "en"
-              ? "Help spread the word by posting about this petition."
+              ? "Help spread the word by sharing this petition with your friends."
               : "މި ޕެޓިޝަންގައި ވީހާވެސް ގިނަ ބަޔަކު ބައިވެރިކުރުމަށްޓަކައި އެކްސްގައި ޕޯސްޓް ކޮށްދެއްވާ."}
           </DialogDescription>
         </DialogHeader>
@@ -72,7 +72,7 @@ export function TweetModal({
             onClick={openTwitterIntent}
             className={`w-full bg-black hover:bg-neutral-800 ${language === "dv" ? "dhivehi" : ""}`}
           >
-            {language === "en" ? "Post" : "ޕޯސްޓް ކުރައްވާ"}
+            {language === "en" ? "Share on" : "ޕޯސްޓް ކުރައްވާ"}
             <XIcon className="h-4 w-4 ml-2" />
           </Button>
 
@@ -81,7 +81,6 @@ export function TweetModal({
             onClick={onClose}
             className={`w-full ${language === "dv" ? "dhivehi" : ""}`}
           >
-            <X className="h-4 w-4 mr-2" />
             {language === "en" ? "Maybe Later" : "ފަހުން"}
           </Button>
         </div>
