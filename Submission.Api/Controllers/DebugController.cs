@@ -273,6 +273,17 @@ namespace Submission.Api.Controllers
             }
         }
 
+        [HttpPost("svg-debug", Name = "SvgDebug")]
+        public async Task<IActionResult> SVG_TEST([FromForm]string svg)
+        {
+            // SVG validation: reject bad/malicious SVGs before persisting
+            if (!Submission.Api.Services.SvgValidator.TryValidate(svg, out var svgError))
+            {
+                return BadRequest($"Invalid signature SVG: {svgError}");
+            }
+            return Ok("Valid SVG");
+        }
+
         private (string frontmatter, string body) ParseMarkdownFile(string content)
         {
             var lines = content.Split('\n');

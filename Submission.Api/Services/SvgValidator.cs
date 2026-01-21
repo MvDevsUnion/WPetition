@@ -19,7 +19,7 @@ namespace Submission.Api.Services
         // Basic attribute whitelist (prefix-free) - attributes not listed are still allowed but checked for danger.
         private static readonly HashSet<string> AllowedAttributes = new(StringComparer.OrdinalIgnoreCase)
         {
-            "id","class","width","height","viewBox","fill","stroke","d","x","y","cx","cy","r","rx","ry","points",
+            "id","class","width","height","viewBox","fill","stroke","d","x","y","cx","cy","r","rx","ry","points","stroke-linecap","stroke-linejoin",
             "transform","style","xmlns","xmlns:xlink","xlink:href","href","opacity","stroke-width","font-size","font-family"
         };
 
