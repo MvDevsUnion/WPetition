@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import type { PetitionDetails } from "@/types/petition";
-import { fetchPetition, getDummyPetition } from "@/lib/api";
+import { fetchPetitionBySlug, getDummyPetition } from "@/lib/api";
 
 interface UsePetitionResult {
   petition: PetitionDetails | null;
@@ -9,15 +9,15 @@ interface UsePetitionResult {
   refetch: () => void;
 }
 
-export function usePetition(petitionId: string | null): UsePetitionResult {
+export function usePetition(slug: string | null): UsePetitionResult {
   const [petition, setPetition] = useState<PetitionDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadPetition = useCallback(async () => {
-    if (!petitionId) {
+    if (!slug) {
       setLoading(false);
-      setError("No petition ID provided");
+      setError("No petition slug provided");
       return;
     }
 
@@ -25,7 +25,7 @@ export function usePetition(petitionId: string | null): UsePetitionResult {
     setError(null);
 
     try {
-      const data = await fetchPetition(petitionId);
+      const data = await fetchPetitionBySlug(slug);
       setPetition(data);
     } catch (err) {
       console.warn(
@@ -36,11 +36,11 @@ export function usePetition(petitionId: string | null): UsePetitionResult {
       setError(
         "Failed to load petition from server — showing dummy data for development.",
       );
-      setPetition(getDummyPetition(petitionId));
+      setPetition(getDummyPetition(slug));
     } finally {
       setLoading(false);
     }
-  }, [petitionId]);
+  }, [slug]);
 
   useEffect(() => {
     loadPetition();

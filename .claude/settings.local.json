@@ -5,7 +5,8 @@
       "Bash(docker compose:*)",
       "Bash(chmod:*)",
       "Bash(tree:*)",
-      "Bash(./ci-helper:*)"
+      "Bash(./ci-helper:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

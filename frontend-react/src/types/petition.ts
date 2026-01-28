@@ -5,6 +5,7 @@ export interface Author {
 
 export interface PetitionDetails {
   id: string;
+  slug: string;
   startDate: string;
   nameDhiv: string;
   nameEng: string;
