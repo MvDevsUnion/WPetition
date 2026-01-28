@@ -28,5 +28,8 @@ namespace Submission.Api.Dto
 
         [Required]
         public string PetitionBodyEng { get; set; } = string.Empty;
+
+        [Required]
+        public string turnstileToken { get; set; } = string.Empty;
     }
 }

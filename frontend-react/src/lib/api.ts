@@ -3,6 +3,26 @@ import type { PetitionDetails, SignatureSubmission } from "@/types/petition";
 // API base URL - empty for same-origin requests through Vite proxy
 const API_BASE_URL = "";
 
+export interface SimplePetition {
+  id: string;
+  slug: string;
+  title: string;
+  title_Dhiv: string;
+  signatureCount: number;
+}
+
+export async function fetchLatestPetitions(): Promise<SimplePetition[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/Petition/get-latest-petitions`,
+  );
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export async function fetchPetition(
   petitionId: string,
 ): Promise<PetitionDetails> {
@@ -40,6 +60,7 @@ export interface PetitionFormData {
   authorNid: string;
   petitionBodyDhiv: string;
   petitionBodyEng: string;
+  turnstileToken: string;
 }
 
 export interface SubmitPetitionResponse {
@@ -63,9 +84,10 @@ export async function submitPetition(
   formData.append("AuthorNid", data.authorNid);
   formData.append("PetitionBodyDhiv", data.petitionBodyDhiv);
   formData.append("PetitionBodyEng", data.petitionBodyEng);
+  formData.append("turnstileToken", data.turnstileToken);
 
   const response = await fetch(
-    `${API_BASE_URL}/api/Debug/upload-petition-form`,
+    `${API_BASE_URL}/api/Petition/upload-petition-form`,
     {
       method: "POST",
       body: formData,
