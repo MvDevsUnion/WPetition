@@ -6,6 +6,7 @@ namespace Submission.Api.Models;
 [BsonCollection("petitionDetail")]
 public class PetitionDetail : Document
 {
+    public string Slug { get; set; }
     public DateOnly StartDate { get; set; }
     
     public string NameDhiv { get; set; }
@@ -17,4 +18,6 @@ public class PetitionDetail : Document
     public string PetitionBodyEng { get; set; }
     
     public int SignatureCount { get; set; }
+
+    public bool isApproved { get; set; } = false;
 }

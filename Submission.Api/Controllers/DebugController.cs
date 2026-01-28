@@ -217,6 +217,13 @@ namespace Submission.Api.Controllers
                     return BadRequest(new { message = "StartDate must be in format dd-MM-yyyy" });
                 }
 
+                // Check for duplicate slug
+                var existingPetition = await _petitionRepository.FindOneAsync(x => x.Slug == form.Slug);
+                if (existingPetition != null)
+                {
+                    return Conflict(new { message = $"A petition with slug '{form.Slug}' already exists" });
+                }
+
                 var petitionId = Guid.NewGuid();
 
                 // Create or get author
@@ -236,6 +243,7 @@ namespace Submission.Api.Controllers
                 var petition = new PetitionDetail
                 {
                     Id = petitionId,
+                    Slug = form.Slug,
                     StartDate = startDate,
                     NameDhiv = form.NameDhiv,
                     NameEng = form.NameEng,
@@ -248,7 +256,7 @@ namespace Submission.Api.Controllers
                 await _petitionRepository.InsertOneAsync(petition);
 
                 // Build markdown file content and save to Petitions folder
-                var frontmatter = $"---\nstartDate: {form.StartDate}\nnameDhiv: \"{EscapeYaml(form.NameDhiv)}\"\nnameEng: \"{EscapeYaml(form.NameEng)}\"\nauthor:\n  name: \"{EscapeYaml(form.AuthorName)}\"\n  nid: \"{EscapeYaml(form.AuthorNid)}\"\n---\n";
+                var frontmatter = $"---\nslug: \"{EscapeYaml(form.Slug)}\"\nstartDate: {form.StartDate}\nnameDhiv: \"{EscapeYaml(form.NameDhiv)}\"\nnameEng: \"{EscapeYaml(form.NameEng)}\"\nauthor:\n  name: \"{EscapeYaml(form.AuthorName)}\"\n  nid: \"{EscapeYaml(form.AuthorNid)}\"\n---\n";
                 var body = $"## Petition Body (Dhivehi)\n\n{form.PetitionBodyDhiv}\n\n## Petition Body (English)\n\n{form.PetitionBodyEng}\n";
                 var fileContent = frontmatter + "\n" + body;
 
@@ -262,6 +270,7 @@ namespace Submission.Api.Controllers
                 {
                     message = "Petition created successfully",
                     petitionId = petitionId,
+                    slug = form.Slug,
                     fileName = newFileName,
                     filePath = filePath,
                     authorId = author.Id

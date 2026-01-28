@@ -2,12 +2,10 @@ using Ashi.MongoInterface.Service;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using Submission.Api.Dto;
 using Submission.Api.Models;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Submission.Api.Services;
 
 namespace Submission.Api.Controllers
 {
@@ -129,6 +127,7 @@ namespace Submission.Api.Controllers
             var dto = new PetitionDetailsDto
             {
                 Id = petition_id,
+                Slug = pet.Slug,
                 NameDhiv = pet.NameDhiv,
                 StartDate = pet.StartDate,
                 NameEng = pet.NameEng,
@@ -152,92 +151,52 @@ namespace Submission.Api.Controllers
 
             return Ok(dto);
         }
-    }
 
-
-    #region Turnstile Service
-    public class TurnstileSettings
-    {
-        public string SecretKey { get; set; } = string.Empty;
-    }
-
-    public class TurnstileService
-    {
-        private readonly HttpClient _httpClient;
-        private readonly string _secretKey;
-        private readonly IWebHostEnvironment _env;
-        private const string SiteverifyUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-
-        public TurnstileService(HttpClient httpClient, IOptions<TurnstileSettings> options, IWebHostEnvironment env)
+        [HttpGet("petition/by-slug/{slug}", Name = "GetPetitionBySlug")]
+        public async Task<IActionResult> GetPetitionBySlug([FromRoute] string slug)
         {
-            _httpClient = httpClient;
-            _secretKey = options?.Value?.SecretKey ?? throw new ArgumentNullException(nameof(options), "Turnstile:SecretKey must be configured in appsettings.json");
-            _env = env;
-        }
+            var cacheKey = $"petition_slug_{slug}";
 
-        public async Task<TurnstileResponse> ValidateTokenAsync(string token, string remoteip = null)
-        {
-            if (_env.IsDevelopment() && token == "DEV_BYPASS_TOKEN")
+            // Try to get from cache
+            if (_cache.TryGetValue(cacheKey, out PetitionDetailsDto cachedDto))
             {
-                return new TurnstileResponse { Success = true };
+                return Ok(cachedDto);
             }
 
-            var parameters = new Dictionary<string, string>
+            // Not in cache, fetch from database by slug
+            var pet = await _detailRepository.FindOneAsync(x => x.Slug == slug);
+
+            if (pet == null)
+                return NotFound();
+
+            var author = await _authorRepository.FindOneAsync(x => x.Id == pet.AuthorId);
+
+            var dto = new PetitionDetailsDto
             {
-                { "secret", _secretKey },
-                { "response", token }
+                Id = pet.Id,
+                Slug = pet.Slug,
+                NameDhiv = pet.NameDhiv,
+                StartDate = pet.StartDate,
+                NameEng = pet.NameEng,
+                PetitionBodyDhiv = pet.PetitionBodyDhiv,
+                PetitionBodyEng = pet.PetitionBodyEng,
+
+                AuthorDetails = new AuthorsDto
+                {
+                    Name = author.Name,
+                    NID = author.NID,
+                },
+
+                SignatureCount = pet.SignatureCount
             };
 
-            if (!string.IsNullOrEmpty(remoteip))
-            {
-                parameters.Add("remoteip", remoteip);
-            }
+            // Store in cache with 1 hour expiration
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetAbsoluteExpiration(TimeSpan.FromHours(1));
 
-            var postContent = new FormUrlEncodedContent(parameters);
+            _cache.Set(cacheKey, dto, cacheOptions);
 
-            try
-            {
-                var response = await _httpClient.PostAsync(SiteverifyUrl, postContent);
-                var stringContent = await response.Content.ReadAsStringAsync();
-
-                Console.WriteLine("Turnstile response: " + stringContent);
-
-                // deserialize with case-insensitive option; mapping for "error-codes" is handled by attribute on ErrorCodes
-                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                return JsonSerializer.Deserialize<TurnstileResponse>(stringContent, options);
-            }
-            catch (Exception)
-            {
-                return new TurnstileResponse
-                {
-                    Success = false,
-                    ErrorCodes = new[] { "internal-error" }
-                };
-            }
+            return Ok(dto);
         }
     }
-
-    public class TurnstileResponse
-    {
-        [JsonPropertyName("success")]
-        public bool Success { get; set; }
-
-        // Cloudflare returns "error-codes" (with a hyphen) — map it explicitly
-        [JsonPropertyName("error-codes")]
-        public string[] ErrorCodes { get; set; }
-
-        [JsonPropertyName("challenge_ts")]
-        public string ChallengeTs { get; set; }
-
-        public string Hostname { get; set; }
-
-        public string Action { get; set; }
-
-        // "cdata" may be present
-        public string Cdata { get; set; }
-
-        // metadata is optional and can be an object
-        public JsonElement? Metadata { get; set; }
-    }
-    #endregion
 }

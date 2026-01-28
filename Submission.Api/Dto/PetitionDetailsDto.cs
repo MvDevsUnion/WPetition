@@ -3,6 +3,7 @@
 public class PetitionDetailsDto
 {
     public Guid Id { get; set; }
+    public string Slug { get; set; }
     public DateOnly StartDate { get; set; }
     
     public string NameDhiv { get; set; }

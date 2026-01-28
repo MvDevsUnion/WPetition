@@ -5,6 +5,9 @@ namespace Submission.Api.Dto
     public class PetitionFormDto
     {
         [Required]
+        public string Slug { get; set; } = string.Empty;
+
+        [Required]
         public string NameDhiv { get; set; } = string.Empty;
 
         [Required]
