@@ -107,11 +107,10 @@ When contributing to this project:
 
 ## License
 
-if you use this you must mention that its powered by Mv Devs Union 
+[Must include Powered by Mv Devs Union](https://github.com/MvDevsUnion/.github/blob/main/LICENSE.md)  
+also any forks must be open source   
+this must never be used for data collection and profiling people   
 
-also any forks must be open source 
-
-this must never be used for data collection and profiling people 
 
 ## Support
 
