@@ -50,9 +50,12 @@ namespace Submission.Api.Controllers
 
             if (validation.Success)
             {
-                var cacheKey = $"petition_{petition_id}";
+              //  var cacheKey = $"petition_{petition_id}";
 
                 var pet = await _detailRepository.FindByIdAsync(petition_id);
+
+//                var SlugcacheKey = $"petition_slug_{pet.Slug}";
+
 
                 if (pet == null)
                     return NotFound();
@@ -89,7 +92,8 @@ namespace Submission.Api.Controllers
                 var Countupdate = Builders<PetitionDetail>.Update.Inc("SignatureCount", 1);
                 await _detailRepository.UpdateOneAsync(count_update_filter, Countupdate);
 
-                _cache.Remove(cacheKey);
+              //  _cache.Remove(cacheKey);
+                //_cache.Remove(SlugcacheKey);
 
                 return Ok("your signature has been submitted");
             }
@@ -108,13 +112,13 @@ namespace Submission.Api.Controllers
         [HttpGet("petition/{petition_id}", Name = "GetPetition")]
         public async Task<IActionResult> GetDisHoe([FromRoute] Guid petition_id)
         {
-            var cacheKey = $"petition_{petition_id}";
+            //var cacheKey = $"petition_{petition_id}";
 
-            // Try to get from cache
-            if (_cache.TryGetValue(cacheKey, out PetitionDetailsDto cachedDto))
-            {
-                return Ok(cachedDto);
-            }
+            //// Try to get from cache
+            //if (_cache.TryGetValue(cacheKey, out PetitionDetailsDto cachedDto))
+            //{
+            //    return Ok(cachedDto);
+            //}
 
             // Not in cache, fetch from database
             var pet = await _detailRepository.FindByIdAsync(petition_id);
@@ -144,10 +148,10 @@ namespace Submission.Api.Controllers
             };
 
             // Store in cache with 5 minute expiration
-            var cacheOptions = new MemoryCacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromHours(1));
+           // var cacheOptions = new MemoryCacheEntryOptions()
+           //     .SetAbsoluteExpiration(TimeSpan.FromHours(1));
 
-            _cache.Set(cacheKey, dto, cacheOptions);
+           // _cache.Set(cacheKey, dto, cacheOptions);
 
             return Ok(dto);
         }
@@ -155,13 +159,13 @@ namespace Submission.Api.Controllers
         [HttpGet("petition/by-slug/{slug}", Name = "GetPetitionBySlug")]
         public async Task<IActionResult> GetPetitionBySlug([FromRoute] string slug)
         {
-            var cacheKey = $"petition_slug_{slug}";
+            //var cacheKey = $"petition_slug_{slug}";
 
-            // Try to get from cache
-            if (_cache.TryGetValue(cacheKey, out PetitionDetailsDto cachedDto))
-            {
-                return Ok(cachedDto);
-            }
+            //// Try to get from cache
+            //if (_cache.TryGetValue(cacheKey, out PetitionDetailsDto cachedDto))
+            //{
+            //    return Ok(cachedDto);
+            //}
 
             // Not in cache, fetch from database by slug
             var pet = await _detailRepository.FindOneAsync(x => x.Slug == slug);
@@ -190,11 +194,11 @@ namespace Submission.Api.Controllers
                 SignatureCount = pet.SignatureCount
             };
 
-            // Store in cache with 1 hour expiration
-            var cacheOptions = new MemoryCacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromHours(1));
+            //// Store in cache with 1 hour expiration
+            //var cacheOptions = new MemoryCacheEntryOptions()
+            //    .SetAbsoluteExpiration(TimeSpan.FromHours(1));
 
-            _cache.Set(cacheKey, dto, cacheOptions);
+            //_cache.Set(cacheKey, dto, cacheOptions);
 
             return Ok(dto);
         }
