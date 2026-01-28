@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Submission.Api.Configuration;
 using Submission.Api.Controllers;
+using Submission.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
