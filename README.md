@@ -1,117 +1,250 @@
-# WPetition 
+# WPetition
 
-a self hostable e petition system to collect signatures for your cause.   
-this is made to be hosted by the person running the Petition and not as a full on petition platform.  
-you will still have to export the signatures and submit it to the parliment   
+a self hostable e-petition system to collect signatures for your cause.
+this is made to be hosted by the person running the petition and not as a full on petition platform.
+you will still have to export the signatures and submit it to the parliament.
 for more info check out https://majlis.gov.mv/en/pes/petitions
 
 ## why make this
-maldives parliment promised the release of a e-petition system powered by efass will be released months ago and then never released it   
-i said fuck it i want data protection bill so i made this simple signature collection system since the law doesnt care if youre signature is signed digitally or via wet ink.   
 
-## how to selfhost this (READ)
-first you will need to edit the `sample.Petition.md` file to fit your petition needs  
-then boot up the api server and upload the file
+maldives parliament promised the release of a e-petition system powered by efass will be released months ago and then never released it
+i said fuck it i want data protection bill so i made this simple signature collection system since the law doesnt care if your signature is signed digitally or via wet ink.
 
-```
-curl -X 'POST' \
-  'http://localhost:5299/api/Debug/upload-petition' \
-  -H 'accept: */*' \
-  -H 'Content-Type: multipart/form-data' \
-  -F 'file=@my_WPetition.md'
-```
+## features
 
-this will create the petition in the DB and will also return a guid you can use
+- sign petitions with digital signatures (SVG)
+- bilingual support (Dhivehi and English)
+- rate limiting (3 signatures per minute per IP)
+- duplicate signature prevention (one signature per ID card per petition)
+- Cloudflare Turnstile bot protection
+- SVG signature security validation (blocks XSS, scripts, external URIs)
+- admin dashboard with JWT authentication
+- export signatures as printable HTML for parliament submission
+- petition approval workflow
+- slug-based petition URLs
+- MongoDB backend
+- Docker support
 
-```
+## tech stack
+
+| component | tech |
+|-----------|------|
+| API | ASP.NET Core 9.0 |
+| Frontend | React 19 + TypeScript + Vite + TailwindCSS |
+| Database | MongoDB |
+| Bot protection | Cloudflare Turnstile |
+| Auth | JWT (HS256, 24h expiry) |
+| Web server | Nginx |
+| Container | Docker |
+
+## how to selfhost this
+
+### 1. configure appsettings
+
+update `appsettings.json` (or `appsettings.Production.json` for docker) with your settings:
+
+```json
 {
-  "message": "Petition created successfully",
-  "petitionId": "13921eaa-aea4-4d74-a0f5-52a81c5e7355",
+  "Turnstile": {
+    "SecretKey": "your-turnstile-secret-key"
+  },
+  "PetitionSettings": {
+    "AllowPetitionCreation": true
+  },
+  "MongoDbSettings": {
+    "ConnectionString": "mongodb://localhost:27017",
+    "DatabaseName": "petition_database"
+  },
+  "AdminSettings": {
+    "Username": "your-admin-username",
+    "Password": "a-strong-password"
+  },
+  "Jwt": {
+    "Key": "a-sufficiently-long-secret-key-at-least-32-chars",
+    "Issuer": "SubmissionApi"
+  }
 }
 ```
 
-now go back to appsettings.json and set this to false
+> **important:** change the default admin credentials and JWT key before deploying to production.
 
+### 2. create a petition
+
+head to the frontend and use the petition creation form to submit your petition with all the details (title, body in Dhivehi and English, author info, start date). the form handles Turnstile verification automatically.
+
+you'll get back a petition ID once it's created:
+```json
+{
+  "message": "Petition created successfully",
+  "petitionId": "13921eaa-aea4-4d74-a0f5-52a81c5e7355"
+}
 ```
-  "PetitionSettings": {
-    "AllowPetitionCreation": false
-  },
+
+### 3. lock down petition creation
+
+go to `appsettings.json` and set this to false:
+
+```json
+"PetitionSettings": {
+  "AllowPetitionCreation": false
+}
 ```
 
-next you will need to host your frontend but before you do that go to line 80 on index.html and edit this line to point to your api server
+restart the server. this prevents anyone from creating new petitions.
 
+### 4. approve the petition
+
+login to the admin dashboard and approve your petition, or use the API directly:
+
+```bash
+# get a token
+curl -X POST 'http://localhost:5299/api/auth/login' \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "your-username", "password": "your-password"}'
+
+# approve the petition
+curl -X PATCH 'http://localhost:5299/api/admin/petitions/{petition_id}/approve' \
+  -H 'Authorization: Bearer YOUR_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -d '{"IsApproved": true}'
 ```
-baseUrl: 'http://localhost:5299' 
-```
 
-now you are ready to roll
+### 5. share
 
-go to www.yourdomain.com/index.html?id=[your petition id] and it should all be set
+petitions can be accessed by ID or slug:
+- `www.yourdomain.com/?id={petition_id}`
+- `www.yourdomain.com/{slug}`
 
-## nerd shit
+## docker compose
 
-for more info check the readme inside the api folder
-
-## docker compose yaml
-Deploy Production
 ```yaml
 services:
-    api:
-      image: git.shihaam.dev/mvdevsunion/wpetition/api:latest
-      restart: unless-stopped
-      environment:
-        - ASPNETCORE_ENVIRONMENT=Production
-        - ASPNETCORE_URLS=http://+:9755
-        - MongoDbSettings__ConnectionString=mongodb://admin:yourpassword@mongodb:27017
-      depends_on:
-        - mongodb
-      volumes:
-        - ./data/api/config/appsettings.Production.json:/app/appsettings.Production.json:ro
+  api:
+    image: git.shihaam.dev/mvdevsunion/wpetition/api:latest
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:9755
+      - MongoDbSettings__ConnectionString=mongodb://admin:yourpassword@mongodb:27017
+    depends_on:
+      - mongodb
+    volumes:
+      - ./data/api/config/appsettings.Production.json:/app/appsettings.Production.json:ro
 
-    frontend:
-      image: git.shihaam.dev/mvdevsunion/wpetition/frontend:latest
-      restart: unless-stopped
-      ports:
-        - "80:80"
-      depends_on:
-        - api
-      volumes:
-        - ./data/frontend/index.html:/usr/share/nginx/html/index.html
+  frontend:
+    image: git.shihaam.dev/mvdevsunion/wpetition/frontend:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    volumes:
+      - ./data/frontend/index.html:/usr/share/nginx/html/index.html
 
-    mongodb:
-      image: mongo:latest
-      restart: unless-stopped
-      volumes:
-        - ./data/mongodb:/data/db
-      environment:
-        - MONGO_INITDB_ROOT_USERNAME=admin
-        - MONGO_INITDB_ROOT_PASSWORD=yourpassword
+  mongodb:
+    image: mongo:latest
+    restart: unless-stopped
+    volumes:
+      - ./data/mongodb:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=yourpassword
 ```
 
-## Troubleshooting
+## local development
 
-### Common Issues
+```bash
+# restore dependencies
+dotnet restore
+
+# run the api
+dotnet run --project Submission.Api
+```
+
+the API will be available with Swagger UI at `http://localhost:5xxx/swagger`
+
+## API overview
+
+### public endpoints
+
+| method | endpoint | description |
+|--------|----------|-------------|
+| `POST` | `/api/Sign/petition/{id}` | sign a petition (rate limited: 3/min) |
+| `GET` | `/api/Sign/petition/{id}` | get petition details by ID |
+| `GET` | `/api/Sign/petition/by-slug/{slug}` | get petition details by slug |
+| `POST` | `/api/Petition/upload-petition-form` | create a new petition |
+| `GET` | `/api/Petition/get-latest-petitions` | get 10 most recent approved petitions |
+
+### admin endpoints (JWT required)
+
+| method | endpoint | description |
+|--------|----------|-------------|
+| `POST` | `/api/auth/login` | authenticate and get JWT token |
+| `GET` | `/api/admin/petitions` | list all petitions |
+| `GET` | `/api/admin/export/{id}` | export signatures as printable HTML |
+| `PATCH` | `/api/admin/petitions/{id}/approve` | approve/unapprove a petition |
+
+for detailed admin API docs, see [ADMIN_API.md](ADMIN_API.md).
+
+## security
+
+- **rate limiting** - 3 signatures per minute per IP (fixed window)
+- **Cloudflare Turnstile** - bot protection on form submissions
+- **SVG validation** - blocks `<script>`, `<foreignObject>`, `<iframe>`, event handlers, `javascript:` URIs, and external resources in signature SVGs
+- **duplicate prevention** - one signature per ID card per petition
+- **JWT auth** - HS256 with 24h expiry for admin endpoints
+- **input validation** - name (min 3 chars), ID card (6-7 chars)
+
+## project structure
+
+```
+├── Submission.Api/
+│   ├── Controllers/
+│   │   ├── SignController.cs        # petition signing & retrieval
+│   │   ├── PetitionController.cs    # petition creation & listing
+│   │   ├── AdminController.cs       # admin dashboard endpoints
+│   │   ├── AuthController.cs        # JWT authentication
+│   │   └── DebugController.cs       # debug utilities
+│   ├── Models/                      # MongoDB document models
+│   ├── Dto/                         # request/response DTOs
+│   ├── Services/
+│   │   ├── TurnstileService.cs      # Cloudflare Turnstile verification
+│   │   └── SvgValidator.cs          # SVG security validation
+│   └── Configuration/              # settings classes
+├── frontend-react/                  # React frontend
+├── nginx/                           # nginx config
+└── compose.yaml                     # docker compose
+```
+
+## troubleshooting
 
 **MongoDB Connection Failed**
-- Verify MongoDB is running
-- Check connection string in `appsettings.json`
-- Ensure network connectivity to MongoDB instance
+- verify MongoDB is running
+- check connection string in `appsettings.json`
+- ensure network connectivity to MongoDB instance
 
-## Contributing
+**Petition not showing up**
+- make sure the petition has been approved via the admin dashboard
+- only approved petitions appear in the public listings
 
-When contributing to this project:
-1. Follow existing code style and conventions
-2. Test all endpoints thoroughly
-3. Update documentation for any API changes
-4. Ensure rate limiting is not disabled in production
+**Rate limit hit (429)**
+- the API allows 3 signatures per minute per IP
+- wait a minute and try again
 
-## License
+## contributing
 
-[Must include Powered by Mv Devs Union](https://github.com/MvDevsUnion/.github/blob/main/LICENSE.md)  
-also any forks must be open source   
-this must never be used for data collection and profiling people   
+when contributing to this project:
+1. follow existing code style and conventions
+2. test all endpoints thoroughly
+3. update documentation for any API changes
+4. ensure rate limiting is not disabled in production
 
+## license
 
-## Support
+[Must include Powered by Mv Devs Union](https://github.com/MvDevsUnion/.github/blob/main/LICENSE.md)
+also any forks must be open source
+this must never be used for data collection and profiling people
 
-For issues or questions, please open an issue on the repository.
+## support
+
+for issues or questions, please open an issue on the repository.
