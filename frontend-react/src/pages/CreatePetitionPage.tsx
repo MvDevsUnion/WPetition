@@ -85,7 +85,7 @@ function GuidelinesModal({ onAccept }: { onAccept: () => void }) {
               I Understand, Continue
             </button>
             <a
-              href="https://majlis.gov.mv/en/pes/petitions"
+              href="https://epetition.majlis.gov.mv/petition-rules"
               target="_blank"
               rel="noopener noreferrer"
               className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-3 px-6 rounded-lg transition-colors text-center"
