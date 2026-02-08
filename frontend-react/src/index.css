@@ -126,8 +126,14 @@
 /* Dhivehi text styles - using Faruma as primary font */
 .dhivehi {
   font-family: "Faruma", "Waheed", sans-serif;
+  font-size: 1.15em;
   direction: rtl;
   text-align: right;
+}
+
+/* Ensure Dhivehi font applies to all child elements (for markdown content) */
+.dhivehi * {
+  font-family: inherit;
 }
 
 /* RTL document support */

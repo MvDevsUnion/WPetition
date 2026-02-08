@@ -54,7 +54,7 @@ export function PetitionBody({
 
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className={`mt-4 flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition-colors ${isRtl ? "flex-row-reverse" : ""}`}
+        className={`mt-4 flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition-colors ${isRtl ? "flex-row-reverse dhivehi" : ""}`}
       >
         {isExpanded ? (
           <>

@@ -418,10 +418,6 @@ export function CreatePetitionPage() {
           </div>
         </form>
       </div>
-
-      <footer className="text-center text-slate-500 text-sm mt-6 pb-4">
-        Powered by Mv Devs Union
-      </footer>
     </div>
   );
 }

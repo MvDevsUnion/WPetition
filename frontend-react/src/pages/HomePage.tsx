@@ -105,10 +105,6 @@ export function HomePage() {
           </div>
         )}
       </div>
-
-      <footer className="text-center text-slate-500 text-sm py-8">
-        Powered by Mv Devs Union
-      </footer>
     </div>
   );
 }
